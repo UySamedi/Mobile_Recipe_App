@@ -12,9 +12,9 @@ class MainNavBar extends StatelessWidget {
 
   final BottomNavController controller = Get.put(BottomNavController());
 
-  final pages = const [
-    HomeView(),
-    SearchView(),
+  final pages = [
+    const HomeView(),
+    const SearchView(),
     FavoritesView(),
   ];
 

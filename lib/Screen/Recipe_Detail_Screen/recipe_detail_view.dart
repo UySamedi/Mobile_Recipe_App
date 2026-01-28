@@ -1,11 +1,18 @@
 import "package:flutter/material.dart";
+import "package:get/get.dart";
+import "package:url_launcher/url_launcher.dart";
 
 import "../../models/recipe.dart";
+import "../FavoritesScreen/favorites_controller.dart";
 
 class RecipeDetailView extends StatelessWidget {
-  const RecipeDetailView({super.key, required this.recipe});
+  RecipeDetailView({super.key, required this.recipe});
 
   final Recipe recipe;
+  final FavoritesController favoritesController =
+      Get.isRegistered<FavoritesController>()
+          ? Get.find<FavoritesController>()
+          : Get.put(FavoritesController());
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +46,17 @@ class RecipeDetailView extends StatelessWidget {
                   _iconButton(Icons.arrow_back, () {
                     Navigator.pop(context);
                   }),
-                  _iconButton(Icons.favorite_border, () {}),
+                  Obx(() {
+                    final isFavorite =
+                        favoritesController.isFavorite(recipe);
+                    return _iconButton(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      () {
+                        favoritesController.toggleFavorite(recipe);
+                      },
+                      color: isFavorite ? Colors.red : Colors.black,
+                    );
+                  }),
                 ],
               ),
             ),
@@ -132,7 +149,7 @@ class RecipeDetailView extends StatelessWidget {
                           icon: const Icon(Icons.play_circle),
                           label: const Text("Watch on YouTube"),
                           onPressed: hasVideo
-                              ? () => _showYoutubeLink(
+                              ? () => _openYoutubeLink(
                                     context,
                                     recipe.youtubeLink!,
                                   )
@@ -156,21 +173,54 @@ class RecipeDetailView extends StatelessWidget {
     );
   }
 
-  static void _showYoutubeLink(BuildContext context, String url) {
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("YouTube Link"),
-          content: SelectableText(url),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Close"),
-            ),
-          ],
-        );
-      },
+  static Future<void> _openYoutubeLink(
+    BuildContext context,
+    String url,
+  ) async {
+    final uri = _normalizeYoutubeUrl(url);
+    if (uri == null) {
+      _showErrorSnack(context, "Invalid YouTube link.");
+      return;
+    }
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (launched) {
+      return;
+    }
+    final fallback = await launchUrl(
+      uri,
+      mode: LaunchMode.platformDefault,
+    );
+    if (!fallback) {
+      _showErrorSnack(context, "Could not open YouTube.");
+    }
+  }
+
+  static Uri? _normalizeYoutubeUrl(String raw) {
+    final cleaned = raw.trim();
+    if (cleaned.isEmpty) {
+      return null;
+    }
+    Uri? uri = Uri.tryParse(cleaned);
+    if (uri == null) {
+      return null;
+    }
+    if (uri.scheme.isEmpty) {
+      final looksLikeId =
+          !cleaned.contains("/") && !cleaned.contains(".") && cleaned.length >= 8;
+      final candidate = looksLikeId
+          ? "https://www.youtube.com/watch?v=$cleaned"
+          : "https://$cleaned";
+      uri = Uri.tryParse(candidate);
+    }
+    return uri;
+  }
+
+  static void _showErrorSnack(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -182,11 +232,15 @@ class RecipeDetailView extends StatelessWidget {
         .toList();
   }
 
-  static Widget _iconButton(IconData icon, VoidCallback onTap) {
+  static Widget _iconButton(
+    IconData icon,
+    VoidCallback onTap, {
+    Color color = Colors.black,
+  }) {
     return CircleAvatar(
       backgroundColor: Colors.white,
       child: IconButton(
-        icon: Icon(icon, color: Colors.black),
+        icon: Icon(icon, color: color),
         onPressed: onTap,
       ),
     );
