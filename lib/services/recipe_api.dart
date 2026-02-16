@@ -16,7 +16,7 @@ class RecipeApi {
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return "http://172.31.98.145:8080";
+      return "http://10.0.2.2:8080";
 
       //  real device
             // http://172.31.98.145:8080

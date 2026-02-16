@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../models/recipe.dart';
@@ -14,12 +12,26 @@ class SearchView extends StatefulWidget {
 }
 
 class _SearchViewState extends State<SearchView> {
+  static const String _ingredientGroupAll = 'All';
+  static const List<String> _ingredientGroupOrder = <String>[
+    'Vegetables',
+    'Meat & Seafood',
+    'Dairy & Eggs',
+    'Herbs & Spices',
+    'Sauces & Pastes',
+    'Staples',
+    'Fruits',
+    'Others',
+  ];
+
   late Future<List<Recipe>> _resultsFuture;
   late Future<List<Recipe>> _allRecipesFuture;
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _ingredientFilterController =
+      TextEditingController();
   String _query = '';
+  String _ingredientFilterQuery = '';
   int? _selectedCategoryId;
-  Timer? _debounce;
+  String _selectedIngredientGroup = _ingredientGroupAll;
   final Set<String> _selectedIngredients = <String>{};
   List<Recipe> _allRecipesCache = const <Recipe>[];
 
@@ -31,8 +43,7 @@ class _SearchViewState extends State<SearchView> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
-    _searchController.dispose();
+    _ingredientFilterController.dispose();
     super.dispose();
   }
 
@@ -102,68 +113,149 @@ class _SearchViewState extends State<SearchView> {
     final ingredientOptions = _buildIngredientOptions(
       _allRecipesCache.isEmpty ? recipes : _allRecipesCache,
     );
+    final ingredientGroups = _buildIngredientGroups(ingredientOptions);
+    if (!ingredientGroups.any((group) => group.name == _selectedIngredientGroup)) {
+      _selectedIngredientGroup = _ingredientGroupAll;
+    }
+    final visibleIngredientOptions = _filterIngredientOptionsByGroup(
+      ingredientOptions,
+      _selectedIngredientGroup,
+    );
+    final filteredIngredientOptions = _filterIngredientOptionsByText(
+      visibleIngredientOptions,
+      _ingredientFilterQuery,
+    );
 
     final topSection = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Search ingredients (comma separated)',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _query.isEmpty
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                        _query = '';
-                        _selectedIngredients.clear();
-                        _selectedCategoryId = null;
-                        _resultsFuture = _allRecipesFuture;
-                      });
-                    },
-                  ),
-            filled: true,
-            fillColor: Colors.grey.shade200,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
-          onChanged: (value) {
-            _onQueryChanged(value);
-          },
-        ),
-        const SizedBox(height: 16),
         if (ingredientOptions.isNotEmpty) ...[
-          const Text(
-            'Ingredients',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: ingredientOptions.map((option) {
-              final selected = _selectedIngredients.contains(option.name);
-              return FilterChip(
-                label: Text(
-                  option.name,
-                  style: const TextStyle(fontSize: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade100),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ingredients',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                selected: selected,
-                onSelected: (value) {
-                  _onIngredientChipToggled(option.name, value);
-                },
-                selectedColor: Colors.green.shade200,
-                backgroundColor: Colors.grey.shade200,
-                checkmarkColor: Colors.green.shade900,
-                labelPadding: const EdgeInsets.symmetric(horizontal: 5),
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-              );
-            }).toList(),
+                const SizedBox(height: 4),
+                Text(
+                  _selectedIngredients.isEmpty
+                      ? 'Tap ingredients to build your search'
+                      : '${_selectedIngredients.length} selected',
+                  style: TextStyle(
+                    color: Colors.green.shade900,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_selectedIngredients.isNotEmpty) ...[
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _selectedIngredients
+                        .map(_selectedIngredientChip)
+                        .toList(growable: false),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                TextField(
+                  controller: _ingredientFilterController,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Filter ingredient chips',
+                    prefixIcon: const Icon(Icons.tune, size: 18),
+                    suffixIcon: _ingredientFilterQuery.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _ingredientFilterQuery = '';
+                                _ingredientFilterController.clear();
+                              });
+                            },
+                          ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.green.shade100),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.green.shade100),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _ingredientFilterQuery = value.trim();
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 36,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: ingredientGroups
+                        .map(_ingredientGroupChip)
+                        .toList(growable: false),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (filteredIngredientOptions.isEmpty)
+                  Text(
+                    'No ingredients match this filter.',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: filteredIngredientOptions.map((option) {
+                      final selected = _selectedIngredients.contains(option.name);
+                      return FilterChip(
+                        label: Text(
+                          '${option.name} (${option.count})',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        selected: selected,
+                        onSelected: (value) {
+                          _onIngredientChipToggled(option.name, value);
+                        },
+                        selectedColor: Colors.green.shade200,
+                        backgroundColor: Colors.white,
+                        side: BorderSide(
+                          color: selected
+                              ? Colors.green.shade500
+                              : Colors.grey.shade300,
+                        ),
+                        checkmarkColor: Colors.green.shade900,
+                      );
+                    }).toList(growable: false),
+                  ),
+                if (_selectedIngredients.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: _clearIngredientSelection,
+                    icon: const Icon(Icons.clear_all),
+                    label: const Text('Clear selected ingredients'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.green.shade900,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
           const SizedBox(height: 16),
         ],
@@ -265,21 +357,6 @@ class _SearchViewState extends State<SearchView> {
     });
   }
 
-  void _onQueryChanged(String value) {
-    setState(() {
-      _query = value;
-      _selectedCategoryId = null;
-      _setSelectedIngredients(_parseIngredients(value));
-    });
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      if (!mounted) {
-        return;
-      }
-      _runSearch();
-    });
-  }
-
   void _runSearch() {
     final names = _parseIngredients(_query);
     setState(() {
@@ -289,7 +366,6 @@ class _SearchViewState extends State<SearchView> {
   }
 
   void _onIngredientChipToggled(String name, bool selected) {
-    _debounce?.cancel();
     setState(() {
       if (selected) {
         _selectedIngredients.add(name);
@@ -298,20 +374,10 @@ class _SearchViewState extends State<SearchView> {
       }
       _selectedCategoryId = null;
       _query = _selectedIngredients.join(', ');
-      _searchController.text = _query;
-      _searchController.selection = TextSelection.collapsed(
-        offset: _searchController.text.length,
-      );
       _resultsFuture = _selectedIngredients.isEmpty
           ? _allRecipesFuture
           : RecipeApi.searchByIngredients(_selectedIngredients.toList());
     });
-  }
-
-  void _setSelectedIngredients(List<String> names) {
-    _selectedIngredients
-      ..clear()
-      ..addAll(names);
   }
 
   List<String> _parseIngredients(String input) {
@@ -364,7 +430,13 @@ class _SearchViewState extends State<SearchView> {
       }
     }
     final options = counts.entries
-        .map((entry) => _IngredientOption(entry.key, entry.value))
+        .map(
+          (entry) => _IngredientOption(
+            entry.key,
+            entry.value,
+            _classifyIngredientGroup(entry.key),
+          ),
+        )
         .toList()
       ..sort((a, b) {
         final countCompare = b.count.compareTo(a.count);
@@ -378,6 +450,168 @@ class _SearchViewState extends State<SearchView> {
       return options;
     }
     return options.sublist(0, maxChips);
+  }
+
+  List<_IngredientGroup> _buildIngredientGroups(List<_IngredientOption> options) {
+    final Map<String, int> groupCounts = {};
+    for (final option in options) {
+      groupCounts.update(option.group, (value) => value + 1, ifAbsent: () => 1);
+    }
+
+    final groups = <_IngredientGroup>[
+      _IngredientGroup(_ingredientGroupAll, options.length),
+    ];
+    for (final groupName in _ingredientGroupOrder) {
+      final count = groupCounts[groupName];
+      if (count != null && count > 0) {
+        groups.add(_IngredientGroup(groupName, count));
+      }
+    }
+    return groups;
+  }
+
+  List<_IngredientOption> _filterIngredientOptionsByGroup(
+    List<_IngredientOption> options,
+    String group,
+  ) {
+    if (group == _ingredientGroupAll) {
+      return options;
+    }
+    return options.where((option) => option.group == group).toList();
+  }
+
+  List<_IngredientOption> _filterIngredientOptionsByText(
+    List<_IngredientOption> options,
+    String query,
+  ) {
+    final trimmed = query.trim().toLowerCase();
+    if (trimmed.isEmpty) {
+      return options;
+    }
+    return options
+        .where((option) => option.name.toLowerCase().contains(trimmed))
+        .toList();
+  }
+
+  String _classifyIngredientGroup(String ingredientName) {
+    final value = ingredientName.toLowerCase();
+
+    if (_containsAny(value, const <String>['sauce', 'paste', 'ketchup', 'mayo'])) {
+      return 'Sauces & Pastes';
+    }
+    if (_containsAny(value, const <String>[
+      'spinach',
+      'carrot',
+      'onion',
+      'pepper',
+      'cabbage',
+      'broccoli',
+      'tomato',
+      'chili',
+    ])) {
+      return 'Vegetables';
+    }
+    if (_containsAny(value, const <String>[
+      'fish',
+      'chicken',
+      'beef',
+      'pork',
+      'shrimp',
+      'meat',
+    ])) {
+      return 'Meat & Seafood';
+    }
+    if (_containsAny(value, const <String>[
+      'egg',
+      'milk',
+      'cheese',
+      'butter',
+      'yogurt',
+    ])) {
+      return 'Dairy & Eggs';
+    }
+    if (_containsAny(value, const <String>[
+      'garlic',
+      'ginger',
+      'mint',
+      'basil',
+      'coriander',
+      'cumin',
+      'turmeric',
+      'curry',
+    ])) {
+      return 'Herbs & Spices';
+    }
+    if (_containsAny(value, const <String>[
+      'rice',
+      'flour',
+      'noodle',
+      'bread',
+      'sugar',
+      'salt',
+      'oil',
+      'soy',
+    ])) {
+      return 'Staples';
+    }
+    if (_containsAny(value, const <String>[
+      'pineapple',
+      'lime',
+      'lemon',
+      'apple',
+      'banana',
+      'orange',
+    ])) {
+      return 'Fruits';
+    }
+    return 'Others';
+  }
+
+  bool _containsAny(String input, List<String> keywords) {
+    for (final keyword in keywords) {
+      if (input.contains(keyword)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _clearIngredientSelection() {
+    setState(() {
+      _selectedIngredients.clear();
+      _query = '';
+      _resultsFuture = _allRecipesFuture;
+    });
+  }
+
+  Widget _selectedIngredientChip(String name) {
+    return InputChip(
+      label: Text(name),
+      onDeleted: () {
+        _onIngredientChipToggled(name, false);
+      },
+      deleteIcon: const Icon(Icons.close, size: 16),
+      backgroundColor: Colors.white,
+      side: BorderSide(color: Colors.green.shade200),
+    );
+  }
+
+  Widget _ingredientGroupChip(_IngredientGroup group) {
+    final isSelected = _selectedIngredientGroup == group.name;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text('${group.name} (${group.count})'),
+        selected: isSelected,
+        onSelected: (_) {
+          setState(() {
+            _selectedIngredientGroup = group.name;
+          });
+        },
+        selectedColor: Colors.green.shade300,
+        backgroundColor: Colors.white,
+      ),
+    );
   }
 
   Widget _categoryChip(_CategoryFilter category) {
@@ -511,7 +745,15 @@ class _CategoryFilter {
 }
 
 class _IngredientOption {
-  const _IngredientOption(this.name, this.count);
+  const _IngredientOption(this.name, this.count, this.group);
+
+  final String name;
+  final int count;
+  final String group;
+}
+
+class _IngredientGroup {
+  const _IngredientGroup(this.name, this.count);
 
   final String name;
   final int count;
