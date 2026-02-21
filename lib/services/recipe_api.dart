@@ -1,12 +1,14 @@
-import "dart:convert";
+import "package:flutter/foundation.dart"
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 
-import "package:flutter/foundation.dart";
+import "dart:convert";
 import "package:http/http.dart" as http;
 
 import "../models/recipe.dart";
 
 class RecipeApi {
   static String get _endpoint => "${_baseUrl()}/api/recipes";
+  static String get _categoriesEndpoint => "${_baseUrl()}/api/categories";
   static String get _searchEndpoint =>
       "${_baseUrl()}/api/recipes/searchByIngredients";
 
@@ -40,6 +42,23 @@ class RecipeApi {
     return decoded
         .whereType<Map<String, dynamic>>()
         .map(Recipe.fromJson)
+        .toList();
+  }
+
+  static Future<List<Category>> fetchCategories() async {
+    final response = await http.get(Uri.parse(_categoriesEndpoint));
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load categories (${response.statusCode}).");
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw Exception("Unexpected categories response.");
+    }
+
+    return decoded
+        .map(Category.fromDynamic)
+        .where((category) => category.name.trim().isNotEmpty)
         .toList();
   }
 

@@ -102,11 +102,81 @@ class RecipeDetailView extends StatelessWidget {
                           Text(recipe.calory?.toString() ?? "N/A"),
                         ],
                       ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _metaChip(
+                            Icons.trending_up,
+                            recipe.difficulty.isEmpty
+                                ? "Difficulty N/A"
+                                : recipe.difficulty,
+                          ),
+                          _metaChip(
+                            Icons.schedule,
+                            "Prep ${_formatMinutes(recipe.preparationTimeMinutes)}",
+                          ),
+                          _metaChip(
+                            Icons.timer_outlined,
+                            "Cook ${_formatMinutes(recipe.cookTimeMinutes)}",
+                          ),
+                          _metaChip(
+                            Icons.timelapse,
+                            "Total ${_formatMinutes(recipe.totalTimeMinutes)}",
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
                       if (recipe.description.isNotEmpty) ...[
                         Text(
                           recipe.description,
                           style: TextStyle(color: Colors.grey.shade700),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      if (recipe.nutrition != null) ...[
+                        const Text(
+                          "Nutrition",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _nutritionChip(
+                              "Calories",
+                              _formatValue(recipe.nutrition!.calories, "kcal"),
+                            ),
+                            _nutritionChip(
+                              "Protein",
+                              _formatValue(recipe.nutrition!.proteinGrams, "g"),
+                            ),
+                            _nutritionChip(
+                              "Carbs",
+                              _formatValue(recipe.nutrition!.carbsGrams, "g"),
+                            ),
+                            _nutritionChip(
+                              "Fat",
+                              _formatValue(recipe.nutrition!.fatGrams, "g"),
+                            ),
+                            _nutritionChip(
+                              "Fiber",
+                              _formatValue(recipe.nutrition!.fiberGrams, "g"),
+                            ),
+                            _nutritionChip(
+                              "Sugar",
+                              _formatValue(recipe.nutrition!.sugarGrams, "g"),
+                            ),
+                            _nutritionChip(
+                              "Sodium",
+                              _formatValue(recipe.nutrition!.sodiumMg, "mg"),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 20),
                       ],
@@ -189,10 +259,16 @@ class RecipeDetailView extends StatelessWidget {
     if (launched) {
       return;
     }
+    if (!context.mounted) {
+      return;
+    }
     final fallback = await launchUrl(
       uri,
       mode: LaunchMode.platformDefault,
     );
+    if (!context.mounted) {
+      return;
+    }
     if (!fallback) {
       _showErrorSnack(context, "Could not open YouTube.");
     }
@@ -279,5 +355,59 @@ class RecipeDetailView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Widget _metaChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade700),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _nutritionChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.green.shade100),
+      ),
+      child: Text(
+        "$label: $value",
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.green.shade900,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  static String _formatMinutes(int? minutes) {
+    if (minutes == null || minutes <= 0) {
+      return "N/A";
+    }
+    return "${minutes}m";
+  }
+
+  static String _formatValue(int? value, String unit) {
+    if (value == null) {
+      return "N/A";
+    }
+    return "$value $unit";
   }
 }

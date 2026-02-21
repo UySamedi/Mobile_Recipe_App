@@ -30,14 +30,16 @@ class _SearchViewState extends State<SearchView> {
       TextEditingController();
   String _query = '';
   String _ingredientFilterQuery = '';
-  int? _selectedCategoryId;
+  String? _selectedCategoryName;
   String _selectedIngredientGroup = _ingredientGroupAll;
   final Set<String> _selectedIngredients = <String>{};
   List<Recipe> _allRecipesCache = const <Recipe>[];
+  List<Category> _categoriesCache = const <Category>[];
 
   @override
   void initState() {
     super.initState();
+    _loadCategories();
     _refreshAllRecipes(updateResults: true);
   }
 
@@ -103,12 +105,12 @@ class _SearchViewState extends State<SearchView> {
   }
 
   Widget _buildContent(BuildContext context, List<Recipe> recipes) {
-    final categories = _buildCategories(recipes);
-    if (_selectedCategoryId != null &&
-        !categories.any((category) => category.id == _selectedCategoryId)) {
-      _selectedCategoryId = null;
+    final categories = _buildCategories(recipes, _categoriesCache);
+    if (_selectedCategoryName != null &&
+        !categories.any((category) => category.id == _selectedCategoryName)) {
+      _selectedCategoryName = null;
     }
-    final filtered = _filterByCategory(recipes, _selectedCategoryId);
+    final filtered = _filterByCategory(recipes, _selectedCategoryName);
     final results = _sortByRating(filtered);
     final ingredientOptions = _buildIngredientOptions(
       _allRecipesCache.isEmpty ? recipes : _allRecipesCache,
@@ -357,6 +359,17 @@ class _SearchViewState extends State<SearchView> {
     });
   }
 
+  void _loadCategories() {
+    RecipeApi.fetchCategories().then((value) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _categoriesCache = value;
+      });
+    }).catchError((_) {});
+  }
+
   void _runSearch() {
     final names = _parseIngredients(_query);
     setState(() {
@@ -372,7 +385,7 @@ class _SearchViewState extends State<SearchView> {
       } else {
         _selectedIngredients.remove(name);
       }
-      _selectedCategoryId = null;
+      _selectedCategoryName = null;
       _query = _selectedIngredients.join(', ');
       _resultsFuture = _selectedIngredients.isEmpty
           ? _allRecipesFuture
@@ -392,24 +405,42 @@ class _SearchViewState extends State<SearchView> {
         .toList();
   }
 
-  List<_CategoryFilter> _buildCategories(List<Recipe> recipes) {
-    final Map<int, String> byId = {};
-    for (final recipe in recipes) {
-      byId.putIfAbsent(recipe.category.id, () => recipe.category.name);
+  List<_CategoryFilter> _buildCategories(
+    List<Recipe> recipes,
+    List<Category> categoriesFromApi,
+  ) {
+    final Set<String> names = {};
+    for (final category in categoriesFromApi) {
+      final name = category.name.trim();
+      if (name.isNotEmpty) {
+        names.add(name);
+      }
     }
-    final entries = byId.entries.toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
+    if (names.isEmpty) {
+      for (final recipe in recipes) {
+        final name = recipe.category.name.trim();
+        if (name.isNotEmpty) {
+          names.add(name);
+        }
+      }
+    }
+    final sortedNames = names.toList()..sort();
     return [
       const _CategoryFilter(null, 'All'),
-      ...entries.map((entry) => _CategoryFilter(entry.key, entry.value)),
+      ...sortedNames.map((name) => _CategoryFilter(name, name)),
     ];
   }
 
-  List<Recipe> _filterByCategory(List<Recipe> recipes, int? selectedId) {
-    if (selectedId == null) {
+  List<Recipe> _filterByCategory(List<Recipe> recipes, String? selectedName) {
+    if (selectedName == null) {
       return recipes;
     }
-    return recipes.where((recipe) => recipe.category.id == selectedId).toList();
+    return recipes
+        .where(
+          (recipe) =>
+              recipe.category.name.toLowerCase() == selectedName.toLowerCase(),
+        )
+        .toList();
   }
 
   List<Recipe> _sortByRating(List<Recipe> recipes) {
@@ -615,7 +646,7 @@ class _SearchViewState extends State<SearchView> {
   }
 
   Widget _categoryChip(_CategoryFilter category) {
-    final isSelected = _selectedCategoryId == category.id;
+    final isSelected = _selectedCategoryName == category.id;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
@@ -623,7 +654,7 @@ class _SearchViewState extends State<SearchView> {
         selected: isSelected,
         onSelected: (_) {
           setState(() {
-            _selectedCategoryId = category.id;
+            _selectedCategoryName = category.id;
           });
         },
         selectedColor: Colors.green.shade300,
@@ -740,7 +771,7 @@ class _SearchViewState extends State<SearchView> {
 class _CategoryFilter {
   const _CategoryFilter(this.id, this.name);
 
-  final int? id;
+  final String? id;
   final String name;
 }
 

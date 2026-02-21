@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "dart:math";
 
 import "../../models/recipe.dart";
 import "../../services/recipe_api.dart";
@@ -13,13 +14,36 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   late Future<List<Recipe>> _recipesFuture;
-  int? _selectedCategoryId;
+  String? _selectedCategoryName;
   String _searchQuery = "";
+  List<Category> _categoriesCache = const <Category>[];
+  final PageController _featuredPageController = PageController();
+  int _featuredPageIndex = 0;
+  List<Recipe> _featuredCache = const <Recipe>[];
+  String _featuredSourceKey = "";
 
   @override
   void initState() {
     super.initState();
+    _loadInitialData();
+  }
+
+  void _loadInitialData() {
     _recipesFuture = RecipeApi.fetchRecipes();
+    RecipeApi.fetchCategories().then((value) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _categoriesCache = value;
+      });
+    }).catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    _featuredPageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -64,7 +88,7 @@ class _HomeViewState extends State<HomeView> {
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  _recipesFuture = RecipeApi.fetchRecipes();
+                  _loadInitialData();
                 });
               },
               child: const Text("Retry"),
@@ -76,14 +100,14 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildContent(BuildContext context, List<Recipe> recipes) {
-    final categories = _buildCategories(recipes);
-    if (_selectedCategoryId != null &&
-        !categories.any((category) => category.id == _selectedCategoryId)) {
-      _selectedCategoryId = null;
+    final categories = _buildCategories(recipes, _categoriesCache);
+    if (_selectedCategoryName != null &&
+        !categories.any((category) => category.id == _selectedCategoryName)) {
+      _selectedCategoryName = null;
     }
-    final filtered = _filterByCategory(recipes, _selectedCategoryId);
+    final filtered = _filterByCategory(recipes, _selectedCategoryName);
     final searched = _filterBySearch(filtered, _searchQuery);
-    final featured = _pickFeatured(searched);
+    final featured = _resolveFeatured(searched);
     final popular = _pickPopular(searched);
 
     return SingleChildScrollView(
@@ -127,10 +151,10 @@ class _HomeViewState extends State<HomeView> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-          if (featured == null)
+          if (featured.isEmpty)
             const Text("No recipes available.")
           else
-            _featuredCard(context, featured),
+            _featuredCarousel(context, featured),
           const SizedBox(height: 20),
           const Text(
             "Popular Recipes",
@@ -159,24 +183,42 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  List<_CategoryFilter> _buildCategories(List<Recipe> recipes) {
-    final Map<int, String> byId = {};
-    for (final recipe in recipes) {
-      byId.putIfAbsent(recipe.category.id, () => recipe.category.name);
+  List<_CategoryFilter> _buildCategories(
+    List<Recipe> recipes,
+    List<Category> categoriesFromApi,
+  ) {
+    final Set<String> names = {};
+    for (final category in categoriesFromApi) {
+      final name = category.name.trim();
+      if (name.isNotEmpty) {
+        names.add(name);
+      }
     }
-    final entries = byId.entries.toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
+    if (names.isEmpty) {
+      for (final recipe in recipes) {
+        final name = recipe.category.name.trim();
+        if (name.isNotEmpty) {
+          names.add(name);
+        }
+      }
+    }
+    final sortedNames = names.toList()..sort();
     return [
       const _CategoryFilter(null, "All"),
-      ...entries.map((entry) => _CategoryFilter(entry.key, entry.value)),
+      ...sortedNames.map((name) => _CategoryFilter(name, name)),
     ];
   }
 
-  List<Recipe> _filterByCategory(List<Recipe> recipes, int? selectedId) {
-    if (selectedId == null) {
+  List<Recipe> _filterByCategory(List<Recipe> recipes, String? selectedName) {
+    if (selectedName == null) {
       return recipes;
     }
-    return recipes.where((recipe) => recipe.category.id == selectedId).toList();
+    return recipes
+        .where(
+          (recipe) =>
+              recipe.category.name.toLowerCase() == selectedName.toLowerCase(),
+        )
+        .toList();
   }
 
   List<Recipe> _filterBySearch(List<Recipe> recipes, String query) {
@@ -195,13 +237,26 @@ class _HomeViewState extends State<HomeView> {
     }).toList();
   }
 
-  Recipe? _pickFeatured(List<Recipe> recipes) {
-    if (recipes.isEmpty) {
-      return null;
+  List<Recipe> _resolveFeatured(List<Recipe> recipes) {
+    final sourceKey = recipes.map((recipe) => recipe.id).join(",");
+    if (sourceKey == _featuredSourceKey) {
+      return _featuredCache;
     }
-    return recipes.reduce(
-      (current, next) => next.rating >= current.rating ? next : current,
-    );
+    _featuredSourceKey = sourceKey;
+    _featuredCache = _pickRandomFeatured(recipes);
+    _featuredPageIndex = 0;
+    if (_featuredPageController.hasClients) {
+      _featuredPageController.jumpToPage(0);
+    }
+    return _featuredCache;
+  }
+
+  List<Recipe> _pickRandomFeatured(List<Recipe> recipes) {
+    if (recipes.isEmpty) {
+      return const <Recipe>[];
+    }
+    final randomized = [...recipes]..shuffle(Random());
+    return randomized.take(3).toList();
   }
 
   List<Recipe> _pickPopular(List<Recipe> recipes) {
@@ -211,7 +266,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _categoryChip(_CategoryFilter category) {
-    final isSelected = _selectedCategoryId == category.id;
+    final isSelected = _selectedCategoryName == category.id;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
@@ -219,7 +274,7 @@ class _HomeViewState extends State<HomeView> {
         selected: isSelected,
         onSelected: (_) {
           setState(() {
-            _selectedCategoryId = category.id;
+            _selectedCategoryName = category.id;
           });
         },
         selectedColor: Colors.green.shade300,
@@ -269,6 +324,47 @@ class _HomeViewState extends State<HomeView> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _featuredCarousel(BuildContext context, List<Recipe> recipes) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 200,
+          child: PageView.builder(
+            controller: _featuredPageController,
+            itemCount: recipes.length,
+            onPageChanged: (index) {
+              setState(() {
+                _featuredPageIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return _featuredCard(context, recipes[index]);
+            },
+          ),
+        ),
+        if (recipes.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(recipes.length, (index) {
+              final selected = index == _featuredPageIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: selected ? 18 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: selected ? Colors.green.shade400 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              );
+            }),
+          ),
+        ],
+      ],
     );
   }
 
@@ -368,6 +464,6 @@ class _HomeViewState extends State<HomeView> {
 class _CategoryFilter {
   const _CategoryFilter(this.id, this.name);
 
-  final int? id;
+  final String? id;
   final String name;
 }
