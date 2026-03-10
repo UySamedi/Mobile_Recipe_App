@@ -192,9 +192,10 @@ class RecipeDetailView extends StatelessWidget {
                         const Text("No ingredients listed.")
                       else
                         ...recipe.ingredients.map(
-                          (item) => _ingredient(
+                          (item) => _ingredientCard(
                             item.ingredient.name,
                             item.quantity,
+                            item.imageUrl ?? item.ingredient.imageUrl,
                           ),
                         ),
                       const SizedBox(height: 20),
@@ -332,6 +333,84 @@ class RecipeDetailView extends StatelessWidget {
           Expanded(child: Text(name)),
           Text(qty),
         ],
+      ),
+    );
+  }
+
+  static Widget _ingredientCard(String name, String qty, String? imageUrl) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          color: Colors.grey.shade50,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              // Ingredient image
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade200,
+                ),
+                child: imageUrl != null && imageUrl.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                size: 24,
+                                color: Colors.grey,
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : const Icon(
+                        Icons.image_not_supported,
+                        size: 24,
+                        color: Colors.grey,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              // Ingredient name and quantity
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      qty,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

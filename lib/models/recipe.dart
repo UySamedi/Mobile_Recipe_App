@@ -146,10 +146,12 @@ class Ingredient {
   Ingredient({
     required this.id,
     required this.name,
+    this.imageUrl,
   });
 
   final int id;
   final String name;
+  final String? imageUrl;
 
   factory Ingredient.fromDynamic(dynamic value) {
     if (value is Map<String, dynamic>) {
@@ -165,6 +167,7 @@ class Ingredient {
     return Ingredient(
       id: _toInt(json["id"]),
       name: _toStringValue(json["name"]),
+      imageUrl: json["imageUrl"] as String?,
     );
   }
 }
@@ -174,17 +177,20 @@ class RecipeIngredient {
     required this.id,
     required this.ingredient,
     required this.quantity,
+    this.imageUrl,
   });
 
   final int id;
   final Ingredient ingredient;
   final String quantity;
+  final String? imageUrl;
 
   factory RecipeIngredient.fromJson(Map<String, dynamic> json) {
     return RecipeIngredient(
       id: _parseRecipeIngredientId(json["id"]),
       ingredient: Ingredient.fromDynamic(json["ingredient"]),
       quantity: _toStringValue(json["quantity"]),
+      imageUrl: json["imageUrl"] as String?,
     );
   }
 

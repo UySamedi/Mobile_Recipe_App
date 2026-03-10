@@ -18,11 +18,8 @@ class RecipeApi {
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
+      // Android emulator uses 10.0.2.2 to reach the host machine's localhost
       return "http://10.0.2.2:8080";
-
-      //  real device
-            // http://172.31.98.145:8080
-            // http://10.0.2.2:8080
     }
 
     return "http://localhost:8080";
