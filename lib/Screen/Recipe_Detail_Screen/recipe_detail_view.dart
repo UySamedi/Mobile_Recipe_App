@@ -5,19 +5,26 @@ import "package:url_launcher/url_launcher.dart";
 import "../../models/recipe.dart";
 import "../FavoritesScreen/favorites_controller.dart";
 
-class RecipeDetailView extends StatelessWidget {
-  RecipeDetailView({super.key, required this.recipe});
+class RecipeDetailView extends StatefulWidget {
+  const RecipeDetailView({super.key, required this.recipe});
 
   final Recipe recipe;
-  final FavoritesController favoritesController =
-      Get.isRegistered<FavoritesController>()
-          ? Get.find<FavoritesController>()
-          : Get.put(FavoritesController());
+
+  @override
+  State<RecipeDetailView> createState() => _RecipeDetailViewState();
+}
+
+class _RecipeDetailViewState extends State<RecipeDetailView> {
+  int userRating = 0;
 
   @override
   Widget build(BuildContext context) {
-    final steps = _splitSteps(recipe.instructions);
-    final hasVideo = recipe.youtubeLink != null && recipe.youtubeLink!.isNotEmpty;
+    final steps = _splitSteps(widget.recipe.instructions);
+    final hasVideo = widget.recipe.youtubeLink != null && widget.recipe.youtubeLink!.isNotEmpty;
+    final FavoritesController favoritesController =
+        Get.isRegistered<FavoritesController>()
+            ? Get.find<FavoritesController>()
+            : Get.put(FavoritesController());
 
     return Scaffold(
       body: Stack(
@@ -26,7 +33,7 @@ class RecipeDetailView extends StatelessWidget {
             height: 300,
             width: double.infinity,
             child: Image.network(
-              recipe.imageUrl,
+              widget.recipe.imageUrl,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
@@ -48,11 +55,11 @@ class RecipeDetailView extends StatelessWidget {
                   }),
                   Obx(() {
                     final isFavorite =
-                        favoritesController.isFavorite(recipe);
+                        favoritesController.isFavorite(widget.recipe);
                     return _iconButton(
                       isFavorite ? Icons.favorite : Icons.favorite_border,
                       () {
-                        favoritesController.toggleFavorite(recipe);
+                        favoritesController.toggleFavorite(widget.recipe);
                       },
                       color: isFavorite ? Colors.red : Colors.black,
                     );
@@ -80,7 +87,7 @@ class RecipeDetailView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        recipe.name,
+                        widget.recipe.name,
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -91,15 +98,15 @@ class RecipeDetailView extends StatelessWidget {
                         children: [
                           const Icon(Icons.category, size: 16),
                           const SizedBox(width: 4),
-                          Text(recipe.category.name),
+                          Text(widget.recipe.category.name),
                           const SizedBox(width: 12),
                           const Icon(Icons.star, size: 16, color: Colors.orange),
                           const SizedBox(width: 4),
-                          Text(recipe.rating.toStringAsFixed(1)),
+                          Text(widget.recipe.rating.toStringAsFixed(1)),
                           const SizedBox(width: 12),
                           const Icon(Icons.local_fire_department, size: 16),
                           const SizedBox(width: 4),
-                          Text(recipe.calory?.toString() ?? "N/A"),
+                          Text(widget.recipe.calory?.toString() ?? "N/A"),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -109,33 +116,66 @@ class RecipeDetailView extends StatelessWidget {
                         children: [
                           _metaChip(
                             Icons.trending_up,
-                            recipe.difficulty.isEmpty
+                            widget.recipe.difficulty.isEmpty
                                 ? "Difficulty N/A"
-                                : recipe.difficulty,
+                                : widget.recipe.difficulty,
                           ),
                           _metaChip(
                             Icons.schedule,
-                            "Prep ${_formatMinutes(recipe.preparationTimeMinutes)}",
+                            "Prep ${_formatMinutes(widget.recipe.preparationTimeMinutes)}",
                           ),
                           _metaChip(
                             Icons.timer_outlined,
-                            "Cook ${_formatMinutes(recipe.cookTimeMinutes)}",
+                            "Cook ${_formatMinutes(widget.recipe.cookTimeMinutes)}",
                           ),
                           _metaChip(
                             Icons.timelapse,
-                            "Total ${_formatMinutes(recipe.totalTimeMinutes)}",
+                            "Total ${_formatMinutes(widget.recipe.totalTimeMinutes)}",
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      if (recipe.description.isNotEmpty) ...[
+                      if (widget.recipe.description.isNotEmpty) ...[
                         Text(
-                          recipe.description,
+                          widget.recipe.description,
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
                         const SizedBox(height: 20),
                       ],
-                      if (recipe.nutrition != null) ...[
+                      // Add user rating input here
+                      const Text(
+                        "Rate this recipe",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: List.generate(5, (index) {
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                userRating = index + 1;
+                              });
+                            },
+                            child: Icon(
+                              Icons.star,
+                              size: 32,
+                              color: index < userRating ? Colors.yellow : Colors.grey,
+                            ),
+                          );
+                        }),
+                      ),
+                      if (userRating > 0) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          "You rated: $userRating star${userRating > 1 ? 's' : ''}",
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      if (widget.recipe.nutrition != null) ...[
                         const Text(
                           "Nutrition",
                           style: TextStyle(
@@ -150,31 +190,31 @@ class RecipeDetailView extends StatelessWidget {
                           children: [
                             _nutritionChip(
                               "Calories",
-                              _formatValue(recipe.nutrition!.calories, "kcal"),
+                              _formatValue(widget.recipe.nutrition!.calories, "kcal"),
                             ),
                             _nutritionChip(
                               "Protein",
-                              _formatValue(recipe.nutrition!.proteinGrams, "g"),
+                              _formatValue(widget.recipe.nutrition!.proteinGrams, "g"),
                             ),
                             _nutritionChip(
                               "Carbs",
-                              _formatValue(recipe.nutrition!.carbsGrams, "g"),
+                              _formatValue(widget.recipe.nutrition!.carbsGrams, "g"),
                             ),
                             _nutritionChip(
                               "Fat",
-                              _formatValue(recipe.nutrition!.fatGrams, "g"),
+                              _formatValue(widget.recipe.nutrition!.fatGrams, "g"),
                             ),
                             _nutritionChip(
                               "Fiber",
-                              _formatValue(recipe.nutrition!.fiberGrams, "g"),
+                              _formatValue(widget.recipe.nutrition!.fiberGrams, "g"),
                             ),
                             _nutritionChip(
                               "Sugar",
-                              _formatValue(recipe.nutrition!.sugarGrams, "g"),
+                              _formatValue(widget.recipe.nutrition!.sugarGrams, "g"),
                             ),
                             _nutritionChip(
                               "Sodium",
-                              _formatValue(recipe.nutrition!.sodiumMg, "mg"),
+                              _formatValue(widget.recipe.nutrition!.sodiumMg, "mg"),
                             ),
                           ],
                         ),
@@ -188,10 +228,10 @@ class RecipeDetailView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      if (recipe.ingredients.isEmpty)
+                      if (widget.recipe.ingredients.isEmpty)
                         const Text("No ingredients listed.")
                       else
-                        ...recipe.ingredients.map(
+                        ...widget.recipe.ingredients.map(
                           (item) => _ingredientCard(
                             item.ingredient.name,
                             item.quantity,
@@ -222,7 +262,7 @@ class RecipeDetailView extends StatelessWidget {
                           onPressed: hasVideo
                               ? () => _openYoutubeLink(
                                     context,
-                                    recipe.youtubeLink!,
+                                    widget.recipe.youtubeLink!,
                                   )
                               : null,
                           style: ElevatedButton.styleFrom(

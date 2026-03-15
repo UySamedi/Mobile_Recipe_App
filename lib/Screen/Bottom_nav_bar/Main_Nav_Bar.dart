@@ -4,6 +4,7 @@ import 'package:google_nav_bar/google_nav_bar.dart';
 
 import '../FavoritesScreen/Favorites_View.dart';
 import '../HomeScreen/Home_view.dart';
+import '../ProfileScreen/Profile_view.dart';
 import '../SearchScreen/Search_view.dart';
 import 'bottom_nav_controller.dart';
 
@@ -15,7 +16,8 @@ class MainNavBar extends StatelessWidget {
   final pages = [
     const HomeView(),
     const SearchView(),
-    FavoritesView(),
+     FavoritesView(),
+    const ProfileView(),
   ];
 
   @override
@@ -73,6 +75,16 @@ class MainNavBar extends StatelessWidget {
                 size: 20,
               ),
               text: 'Favorites',
+              textStyle: TextStyle(
+                fontSize: 14, // 👈 text size
+                fontWeight: FontWeight.w600,
+              ),),
+            GButton(icon: Icons.home, // ✅ REQUIRED (even if using image)
+              leading: ImageIcon(
+                AssetImage('assets/icons/user.png'),
+                size: 20,
+              ),
+              text: 'Profile',
               textStyle: TextStyle(
                 fontSize: 14, // 👈 text size
                 fontWeight: FontWeight.w600,

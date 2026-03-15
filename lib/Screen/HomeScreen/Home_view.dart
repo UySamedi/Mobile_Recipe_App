@@ -51,6 +51,7 @@ class _HomeViewState extends State<HomeView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Khmer Recipes"),
+        automaticallyImplyLeading: false,
       ),
       body: FutureBuilder<List<Recipe>>(
         future: _recipesFuture,
