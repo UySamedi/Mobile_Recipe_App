@@ -1,8 +1,11 @@
 import "package:flutter/material.dart";
 import "package:get/get.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "package:url_launcher/url_launcher.dart";
 
 import "../../models/recipe.dart";
+import "../../services/recipe_api.dart";
+import "../../Auth/loginScreen.dart";
 import "../FavoritesScreen/favorites_controller.dart";
 
 class RecipeDetailView extends StatefulWidget {
@@ -16,6 +19,25 @@ class RecipeDetailView extends StatefulWidget {
 
 class _RecipeDetailViewState extends State<RecipeDetailView> {
   int userRating = 0;
+  bool _isSubmitting = false;
+  bool _hasRated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedRating();
+  }
+
+  Future<void> _loadSavedRating() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getInt('rating_${widget.recipe.id}');
+    if (saved != null && mounted) {
+      setState(() {
+        userRating = saved;
+        _hasRated = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -142,10 +164,9 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                         ),
                         const SizedBox(height: 20),
                       ],
-                      // Add user rating input here
-                      const Text(
-                        "Rate this recipe",
-                        style: TextStyle(
+                      Text(
+                        _hasRated ? "Your rating" : "Rate this recipe",
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -154,24 +175,47 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                       Row(
                         children: List.generate(5, (index) {
                           return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                userRating = index + 1;
-                              });
-                            },
+                            onTap: (_isSubmitting || _hasRated)
+                                ? null
+                                : () => _submitRating(index + 1),
                             child: Icon(
                               Icons.star,
                               size: 32,
-                              color: index < userRating ? Colors.yellow : Colors.grey,
+                              color: index < userRating
+                                  ? Colors.orange
+                                  : Colors.grey.shade300,
                             ),
                           );
                         }),
                       ),
+                      if (_isSubmitting)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
                       if (userRating > 0) ...[
                         const SizedBox(height: 8),
-                        Text(
-                          "You rated: $userRating star${userRating > 1 ? 's' : ''}",
-                          style: TextStyle(color: Colors.grey.shade600),
+                        Row(
+                          children: [
+                            Icon(
+                              _hasRated ? Icons.check_circle : Icons.info_outline,
+                              size: 16,
+                              color: _hasRated ? Colors.green : Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _hasRated
+                                  ? "You rated $userRating star${userRating > 1 ? 's' : ''}"
+                                  : "You rated: $userRating star${userRating > 1 ? 's' : ''}",
+                              style: TextStyle(
+                                color: _hasRated ? Colors.green : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                       const SizedBox(height: 20),
@@ -284,6 +328,77 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
     );
   }
 
+  Future<void> _submitRating(int stars) async {
+    // Check if user is logged in
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Login Required'),
+          content: const Text('Please log in to rate this recipe.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CB050),
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const Loginscreen(),
+                  ),
+                );
+              },
+              child: const Text('Login', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await RecipeApi.rateRecipe(
+        recipeId: widget.recipe.id,
+        stars: stars,
+      );
+      if (!mounted) return;
+      await prefs.setInt('rating_${widget.recipe.id}', stars);
+      await prefs.setString('rating_name_${widget.recipe.id}', widget.recipe.name);
+      if (!mounted) return;
+      setState(() {
+        userRating = stars;
+        _isSubmitting = false;
+        _hasRated = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Rated $stars star${stars > 1 ? 's' : ''} ⭐"),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to rate: $e"),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   static Future<void> _openYoutubeLink(
     BuildContext context,
     String url,
@@ -359,20 +474,6 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
       child: IconButton(
         icon: Icon(icon, color: color),
         onPressed: onTap,
-      ),
-    );
-  }
-
-  static Widget _ingredient(String name, String qty) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, size: 18, color: Colors.green),
-          const SizedBox(width: 8),
-          Expanded(child: Text(name)),
-          Text(qty),
-        ],
       ),
     );
   }

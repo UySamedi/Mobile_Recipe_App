@@ -1,5 +1,4 @@
 import 'package:final_project/Auth/loginScreen.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,6 +20,7 @@ class _ProfileViewState extends State<ProfileView> {
   File? _selectedImage;
   bool _isLoading = false;
   bool _isEditing = false;
+  Map<String, int> _userRatings = {};
 
   late TextEditingController _nameController;
   final ImagePicker _imagePicker = ImagePicker();
@@ -79,6 +79,26 @@ class _ProfileViewState extends State<ProfileView> {
       }
     } finally {
       setState(() => _isLoading = false);
+      _loadUserRatings();
+    }
+  }
+
+  Future<void> _loadUserRatings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final allKeys = prefs.getKeys();
+    final ratings = <String, int>{};
+    for (final key in allKeys) {
+      if (key.startsWith('rating_') && !key.startsWith('rating_name_')) {
+        final recipeId = key.replaceFirst('rating_', '');
+        final value = prefs.getInt(key);
+        if (value != null) {
+          final recipeName = prefs.getString('rating_name_$recipeId') ?? 'Recipe #$recipeId';
+          ratings[recipeName] = value;
+        }
+      }
+    }
+    if (mounted) {
+      setState(() => _userRatings = ratings);
     }
   }
 
@@ -239,11 +259,10 @@ class _ProfileViewState extends State<ProfileView> {
                   const SizedBox(height: 32),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.of(context).pushAndRemoveUntil(
+                      Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => const Loginscreen(),
                         ),
-                        (route) => false,
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -264,7 +283,13 @@ class _ProfileViewState extends State<ProfileView> {
                 ],
               ),
             )
-          : SingleChildScrollView(
+          : RefreshIndicator(
+              onRefresh: () async {
+                await _loadProfile();
+              },
+              color: const Color(0xFF4CB050),
+              child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Center(
@@ -433,7 +458,7 @@ class _ProfileViewState extends State<ProfileView> {
 
                       // Information Display Section (when not editing)
                       if (!_isEditing)
-                        Column(
+                          Column(
                           children: [
                             const SizedBox(height: 24),
                             Container(
@@ -480,6 +505,9 @@ class _ProfileViewState extends State<ProfileView> {
                               ),
                             ),
                             const SizedBox(height: 24),
+                            // My Ratings Section
+                            _buildMyRatingsSection(),
+                            const SizedBox(height: 24),
                             SizedBox(
                               width: double.infinity,
                               height: 48,
@@ -506,7 +534,90 @@ class _ProfileViewState extends State<ProfileView> {
                   ),
                 ),
               ),
+              ),
             ),
+    );
+  }
+
+  Widget _buildMyRatingsSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.star, color: Colors.orange.shade600),
+              const SizedBox(width: 8),
+              Text(
+                'My Ratings',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange.shade800,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_userRatings.length} rated',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_userRatings.isEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'You haven\'t rated any recipes yet.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            ..._userRatings.entries.map((entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.key,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(5, (i) => Icon(
+                      Icons.star,
+                      size: 18,
+                      color: i < entry.value
+                          ? Colors.orange
+                          : Colors.grey.shade300,
+                    )),
+                  ),
+                ],
+              ),
+            )),
+          ],
+        ],
+      ),
     );
   }
 }

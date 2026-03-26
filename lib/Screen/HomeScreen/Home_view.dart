@@ -40,6 +40,18 @@ class _HomeViewState extends State<HomeView> {
     }).catchError((_) {});
   }
 
+  Future<void> _onRefresh() async {
+    final recipes = RecipeApi.fetchRecipes();
+    final categories = RecipeApi.fetchCategories().catchError((_) => _categoriesCache);
+    final results = await Future.wait([recipes, categories]);
+    if (!mounted) return;
+    setState(() {
+      _recipesFuture = Future.value(results[0] as List<Recipe>);
+      _categoriesCache = results[1] as List<Category>;
+      _featuredSourceKey = ""; // reset so featured picks refresh
+    });
+  }
+
   @override
   void dispose() {
     _featuredPageController.dispose();
@@ -63,7 +75,11 @@ class _HomeViewState extends State<HomeView> {
             return _errorState(context, snapshot.error);
           }
           final recipes = snapshot.data ?? const <Recipe>[];
-          return _buildContent(context, recipes);
+          return RefreshIndicator(
+            onRefresh: _onRefresh,
+            color: Colors.green,
+            child: _buildContent(context, recipes),
+          );
         },
       ),
     );
@@ -112,6 +128,7 @@ class _HomeViewState extends State<HomeView> {
     final popular = _pickPopular(searched);
 
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

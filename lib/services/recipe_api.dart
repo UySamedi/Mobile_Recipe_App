@@ -3,6 +3,7 @@ import "package:flutter/foundation.dart"
 
 import "dart:convert";
 import "package:http/http.dart" as http;
+import "package:shared_preferences/shared_preferences.dart";
 
 import "../models/recipe.dart";
 
@@ -91,5 +92,42 @@ class RecipeApi {
         .whereType<Map<String, dynamic>>()
         .map(Recipe.fromJson)
         .toList();
+  }
+
+  /// Rate a recipe (create or update the current user's rating).
+  /// PUT {{base_url}}/api/recipes/{{recipe_id}}/rating
+  /// Body: { "stars": 1–5 }
+  static Future<Map<String, dynamic>> rateRecipe({
+    required int recipeId,
+    required int stars,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null) {
+      throw Exception('No authentication token found. Please log in first.');
+    }
+
+    final url = Uri.parse("$_endpoint/$recipeId/rating");
+    final response = await http.put(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'stars': stars}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        "Failed to rate recipe (${response.statusCode}).",
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    return {'stars': stars};
   }
 }
