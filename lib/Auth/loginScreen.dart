@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../Screen/Bottom_nav_bar/Main_Nav_Bar.dart';
 import 'RegisterScreen.dart';
-import '../Screen/HomeScreen/Home_view.dart';
 
 // Change API base URL for mobile access
 const String apiBaseUrl = 'http://10.0.2.2:8080'; // For Android emulator
@@ -25,22 +24,40 @@ class _LoginscreenState extends State<Loginscreen> {
   bool _rememberMe = false;
   bool _obscurePassword = true;
 
+  String? _extractAccessToken(dynamic responseBody) {
+    if (responseBody is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final direct =
+        responseBody['access_token'] ??
+        responseBody['accessToken'] ??
+        responseBody['token'] ??
+        responseBody['jwt'];
+    if (direct != null && direct.toString().trim().isNotEmpty) {
+      return direct.toString().trim();
+    }
+
+    final data = responseBody['data'];
+    if (data is Map<String, dynamic>) {
+      final nested =
+          data['access_token'] ??
+          data['accessToken'] ??
+          data['token'] ??
+          data['jwt'];
+      if (nested != null && nested.toString().trim().isNotEmpty) {
+        return nested.toString().trim();
+      }
+    }
+
+    return null;
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  Widget _buildSocialButton(String asset, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: CircleAvatar(
-        backgroundColor: Colors.white,
-        radius: 22,
-        child: Image.asset(asset, height: 24),
-      ),
-    );
   }
 
   @override
@@ -50,7 +67,10 @@ class _LoginscreenState extends State<Loginscreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -64,7 +84,10 @@ class _LoginscreenState extends State<Loginscreen> {
                     children: [
                       const Text(
                         'Log in',
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -110,7 +133,11 @@ class _LoginscreenState extends State<Loginscreen> {
                                   borderSide: BorderSide.none,
                                 ),
                                 suffixIcon: IconButton(
-                                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                  ),
                                   onPressed: () {
                                     setState(() {
                                       _obscurePassword = !_obscurePassword;
@@ -163,25 +190,62 @@ class _LoginscreenState extends State<Loginscreen> {
                                 onPressed: () async {
                                   if (_formKey.currentState!.validate()) {
                                     try {
+                                      final email = _emailController.text
+                                          .trim();
+                                      final password = _passwordController.text;
+
                                       var response = await http.post(
                                         Uri.parse('$apiBaseUrl/api/auth/login'),
-                                        headers: {'Content-Type': 'application/json'},
+                                        headers: {
+                                          'Content-Type': 'application/json',
+                                        },
                                         body: jsonEncode({
-                                          'email': _emailController.text,
-                                          'password': _passwordController.text,
+                                          'email': email,
+                                          'password': password,
                                         }),
                                       );
                                       if (response.statusCode == 200) {
                                         // Parse the response
-                                        final jsonResponse = jsonDecode(response.body);
+                                        final jsonResponse = jsonDecode(
+                                          response.body,
+                                        );
 
                                         // Save token and email to SharedPreferences
-                                        final prefs = await SharedPreferences.getInstance();
-                                        final token = jsonResponse['token'] ?? jsonResponse['access_token'];
-                                        if (token != null) {
-                                          await prefs.setString('token', token);
-                                          await prefs.setString('email', _emailController.text);
+                                        final prefs =
+                                            await SharedPreferences.getInstance();
+                                        final token = _extractAccessToken(
+                                          jsonResponse,
+                                        );
+
+                                        if (token == null ||
+                                            token.toString().trim().isEmpty) {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Login response missing token. Please try again.',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                          return;
                                         }
+
+                                        // Clear previous session then store new one.
+                                        await prefs.remove('token');
+                                        await prefs.remove('access_token');
+                                        await prefs.remove('email');
+                                        await prefs.setString(
+                                          'token',
+                                          token.toString().trim(),
+                                        );
+                                        await prefs.setString(
+                                          'access_token',
+                                          token.toString().trim(),
+                                        );
+                                        await prefs.setString('email', email);
 
                                         // Clear the form
                                         _emailController.clear();
@@ -189,8 +253,14 @@ class _LoginscreenState extends State<Loginscreen> {
 
                                         // Show success message
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Login successful!')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Login successful!',
+                                              ),
+                                            ),
                                           );
                                         }
 
@@ -198,27 +268,44 @@ class _LoginscreenState extends State<Loginscreen> {
                                         Get.offAll(() => MainNavBar());
                                       } else if (response.statusCode == 401) {
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Invalid username or password')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Invalid username or password',
+                                              ),
+                                            ),
                                           );
                                         }
                                       } else {
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('Login failed: ${response.body}')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Login failed: ${response.body}',
+                                              ),
+                                            ),
                                           );
                                         }
                                       }
                                     } catch (e) {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(content: Text('Error: $e')),
                                         );
                                       }
                                     }
                                   }
                                 },
-                                child: const Text('Login', style: TextStyle(fontSize: 18)),
+                                child: const Text(
+                                  'Login',
+                                  style: TextStyle(fontSize: 18),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -230,7 +317,13 @@ class _LoginscreenState extends State<Loginscreen> {
                                   onTap: () {
                                     Get.to(() => const Registerscreen());
                                   },
-                                  child: const Text('Sign Up here', style: TextStyle(color: Color(0xFF4CB050), fontWeight: FontWeight.bold)),
+                                  child: const Text(
+                                    'Sign Up here',
+                                    style: TextStyle(
+                                      color: Color(0xFF4CB050),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

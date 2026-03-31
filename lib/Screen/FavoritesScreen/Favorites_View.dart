@@ -5,37 +5,93 @@ import '../../models/recipe.dart';
 import '../Recipe_Detail_Screen/recipe_detail_view.dart';
 import 'favorites_controller.dart';
 
-class FavoritesView extends StatelessWidget {
+class FavoritesView extends StatefulWidget {
   FavoritesView({super.key});
 
-  final FavoritesController controller =
-      Get.isRegistered<FavoritesController>()
-          ? Get.find<FavoritesController>()
-          : Get.put(FavoritesController());
+  @override
+  State<FavoritesView> createState() => _FavoritesViewState();
+}
+
+class _FavoritesViewState extends State<FavoritesView> {
+  final FavoritesController controller = Get.isRegistered<FavoritesController>()
+      ? Get.find<FavoritesController>()
+      : Get.put(FavoritesController());
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure favorites are reloaded for the current logged-in account.
+    controller.loadFavorites();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Favorites'),
-      ),
+      appBar: AppBar(title: const Text('Favorites')),
       body: Obx(() {
-        final favorites = controller.favorites;
-        if (favorites.isEmpty) {
-          return const Center(
-            child: Text(
-              'No favorite recipes yet.',
-              style: TextStyle(fontSize: 16),
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (controller.errorMessage.value.isNotEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading favorites',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    controller.errorMessage.value,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: controller.loadFavorites,
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: favorites.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            return _favoriteRow(context, favorites[index]);
-          },
+
+        final favorites = controller.favorites;
+        if (favorites.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.favorite_border, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Text(
+                  'No favorite recipes yet.',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: controller.loadFavorites,
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: favorites.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              return _favoriteRow(context, favorites[index]);
+            },
+          ),
         );
       }),
     );
@@ -47,9 +103,7 @@ class FavoritesView extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => RecipeDetailView(recipe: recipe),
-          ),
+          MaterialPageRoute(builder: (_) => RecipeDetailView(recipe: recipe)),
         );
       },
       child: Container(
@@ -57,10 +111,7 @@ class FavoritesView extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           color: Colors.white,
           boxShadow: [
-            BoxShadow(
-              blurRadius: 6,
-              color: Colors.black.withOpacity(0.08),
-            ),
+            BoxShadow(blurRadius: 6, color: Colors.black.withOpacity(0.08)),
           ],
         ),
         padding: const EdgeInsets.all(12),

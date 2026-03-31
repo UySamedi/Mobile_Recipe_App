@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:convert';
 import '../../services/auth_api.dart';
 
 class ProfileView extends StatefulWidget {
@@ -24,6 +25,56 @@ class _ProfileViewState extends State<ProfileView> {
 
   late TextEditingController _nameController;
   final ImagePicker _imagePicker = ImagePicker();
+
+  String _normalizeScopePart(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9@._-]'), '_');
+  }
+
+  String? _extractUserIdentityFromToken(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length < 2) {
+        return null;
+      }
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+
+      final userId = decoded['userId'] ?? decoded['id'] ?? decoded['sub'];
+      if (userId != null && userId.toString().trim().isNotEmpty) {
+        return 'id_${_normalizeScopePart(userId.toString())}';
+      }
+
+      final email = decoded['email'];
+      if (email is String && email.trim().isNotEmpty) {
+        return 'email_${_normalizeScopePart(email)}';
+      }
+    } catch (_) {
+      // Ignore malformed token payload and use fallback sources.
+    }
+    return null;
+  }
+
+  String _ratingsKeyForCurrentUser(SharedPreferences prefs) {
+    final token = prefs.getString('token');
+    if (token != null && token.trim().isNotEmpty) {
+      final fromToken = _extractUserIdentityFromToken(token);
+      if (fromToken != null && fromToken.isNotEmpty) {
+        return 'user_ratings_$fromToken';
+      }
+    }
+
+    final rawEmail = (prefs.getString('email') ?? '').trim();
+    if (rawEmail.isNotEmpty) {
+      return 'user_ratings_email_${_normalizeScopePart(rawEmail)}';
+    }
+
+    return 'user_ratings_unknown';
+  }
 
   @override
   void initState() {
@@ -85,18 +136,88 @@ class _ProfileViewState extends State<ProfileView> {
 
   Future<void> _loadUserRatings() async {
     final prefs = await SharedPreferences.getInstance();
-    final allKeys = prefs.getKeys();
     final ratings = <String, int>{};
-    for (final key in allKeys) {
-      if (key.startsWith('rating_') && !key.startsWith('rating_name_')) {
-        final recipeId = key.replaceFirst('rating_', '');
-        final value = prefs.getInt(key);
-        if (value != null) {
-          final recipeName = prefs.getString('rating_name_$recipeId') ?? 'Recipe #$recipeId';
-          ratings[recipeName] = value;
+
+    // Prefer current user-scoped JSON store.
+    final rawStore = prefs.getString(_ratingsKeyForCurrentUser(prefs));
+    if (rawStore != null && rawStore.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawStore);
+        if (decoded is Map<String, dynamic>) {
+          for (final entry in decoded.entries) {
+            final recipeId = entry.key;
+            final item = entry.value;
+            if (item is! Map<String, dynamic>) {
+              continue;
+            }
+            final rawRating = item['rating'];
+            final rating = rawRating is int
+                ? rawRating
+                : (rawRating is num ? rawRating.toInt() : null);
+            if (rating == null) {
+              continue;
+            }
+            final recipeName = (item['recipeName'] as String?)?.trim();
+            final displayName = (recipeName == null || recipeName.isEmpty)
+                ? 'Recipe #$recipeId'
+                : '$recipeName (#$recipeId)';
+            ratings[displayName] = rating;
+          }
+        }
+      } catch (_) {
+        // Fall back to legacy key scanning below.
+      }
+    }
+
+    // Legacy fallback for older non-scoped JSON key.
+    if (ratings.isEmpty) {
+      final legacyStore = prefs.getString('user_ratings');
+      if (legacyStore != null && legacyStore.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(legacyStore);
+          if (decoded is Map<String, dynamic>) {
+            for (final entry in decoded.entries) {
+              final recipeId = entry.key;
+              final item = entry.value;
+              if (item is! Map<String, dynamic>) {
+                continue;
+              }
+              final rawRating = item['rating'];
+              final rating = rawRating is int
+                  ? rawRating
+                  : (rawRating is num ? rawRating.toInt() : null);
+              if (rating == null) {
+                continue;
+              }
+              final recipeName = (item['recipeName'] as String?)?.trim();
+              final displayName = (recipeName == null || recipeName.isEmpty)
+                  ? 'Recipe #$recipeId'
+                  : '$recipeName (#$recipeId)';
+              ratings[displayName] = rating;
+            }
+          }
+        } catch (_) {
+          // Continue to key-scan fallback.
         }
       }
     }
+
+    // Backward-compatible fallback for previously saved rating_* keys.
+    if (ratings.isEmpty) {
+      final allKeys = prefs.getKeys();
+      for (final key in allKeys) {
+        if (key.startsWith('rating_') && !key.startsWith('rating_name_')) {
+          final recipeId = key.replaceFirst('rating_', '');
+          final value = prefs.getInt(key);
+          if (value != null) {
+            final recipeName =
+                prefs.getString('rating_name_$recipeId') ?? 'Recipe #$recipeId';
+            ratings['$recipeName (#$recipeId)'] = value;
+          }
+        }
+      }
+    }
+
     if (mounted) {
       setState(() => _userRatings = ratings);
     }
@@ -289,251 +410,256 @@ class _ProfileViewState extends State<ProfileView> {
               },
               color: const Color(0xFF4CB050),
               child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Profile Image
-                      GestureDetector(
-                        onTap: _isEditing ? _pickImage : null,
-                        child: Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 60,
-                              backgroundImage: _selectedImage != null
-                                  ? FileImage(_selectedImage!) as ImageProvider
-                                  : (profileImage != null && profileImage!.isNotEmpty
-                                      ? NetworkImage(
-                                          profileImage!.startsWith('http')
-                                              ? profileImage!
-                                              : '${AuthApi.baseUrl}$profileImage',
-                                        )
-                                      : null),
-                              child:
-                                  (_selectedImage == null &&
-                                      profileImage == null)
-                                  ? const Icon(Icons.person, size: 60)
-                                  : null,
-                            ),
-                            if (_isEditing)
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF4CB050),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  padding: const EdgeInsets.all(8),
-                                  child: const Icon(
-                                    Icons.camera_alt,
-                                    color: Colors.white,
-                                    size: 20,
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Profile Image
+                        GestureDetector(
+                          onTap: _isEditing ? _pickImage : null,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 60,
+                                backgroundImage: _selectedImage != null
+                                    ? FileImage(_selectedImage!)
+                                          as ImageProvider
+                                    : (profileImage != null &&
+                                              profileImage!.isNotEmpty
+                                          ? NetworkImage(
+                                              profileImage!.startsWith('http')
+                                                  ? profileImage!
+                                                  : '${AuthApi.baseUrl}$profileImage',
+                                            )
+                                          : null),
+                                child:
+                                    (_selectedImage == null &&
+                                        profileImage == null)
+                                    ? const Icon(Icons.person, size: 60)
+                                    : null,
+                              ),
+                              if (_isEditing)
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF4CB050),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    padding: const EdgeInsets.all(8),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-                      // Name Section
-                      if (_isEditing)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Name',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _nameController,
-                              decoration: InputDecoration(
-                                hintText: 'Enter your name',
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFF4CB050),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        )
-                      else
-                        Column(
-                          children: [
-                            Text(
-                              name ?? 'Unknown',
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (email != null && email!.isNotEmpty)
-                              Text(
-                                email!,
-                                style: const TextStyle(
-                                  fontSize: 16,
+                        // Name Section
+                        if (_isEditing)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Name',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
                                   color: Colors.grey,
                                 ),
                               ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-
-                      // Action Buttons
-                      if (_isEditing)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF4CB050),
-                                  shape: RoundedRectangleBorder(
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _nameController,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter your name',
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Colors.grey,
+                                    ),
                                   ),
-                                ),
-                                onPressed: _isLoading ? null : _updateProfile,
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        height: 24,
-                                        width: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                    : const Text(
-                                        'Save Changes',
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              height: 48,
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  shape: RoundedRectangleBorder(
+                                  focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  side: const BorderSide(color: Colors.grey),
-                                ),
-                                onPressed: _cancelEdit,
-                                child: const Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black,
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF4CB050),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-
-                      // Information Display Section (when not editing)
-                      if (!_isEditing)
+                              const SizedBox(height: 16),
+                            ],
+                          )
+                        else
                           Column(
-                          children: [
-                            const SizedBox(height: 24),
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.email,
-                                        color: Color(0xFF4CB050),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Email',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                            Text(
-                                              (email == null || email!.isEmpty) ? 'Not provided' : email!,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            // My Ratings Section
-                            _buildMyRatingsSection(),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                            children: [
+                              Text(
+                                name ?? 'Unknown',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                onPressed: _showLogoutConfirmation,
-                                child: const Text(
-                                  'Logout',
-                                  style: TextStyle(
+                              ),
+                              const SizedBox(height: 8),
+                              if (email != null && email!.isNotEmpty)
+                                Text(
+                                  email!,
+                                  style: const TextStyle(
                                     fontSize: 16,
-                                    color: Colors.white,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+
+                        // Action Buttons
+                        if (_isEditing)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                height: 48,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4CB050),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: _isLoading ? null : _updateProfile,
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Save Changes',
+                                          style: TextStyle(fontSize: 16),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: 48,
+                                child: OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    side: const BorderSide(color: Colors.grey),
+                                  ),
+                                  onPressed: _cancelEdit,
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                    ],
+                            ],
+                          ),
+
+                        // Information Display Section (when not editing)
+                        if (!_isEditing)
+                          Column(
+                            children: [
+                              const SizedBox(height: 24),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.email,
+                                          color: Color(0xFF4CB050),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Email',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              Text(
+                                                (email == null ||
+                                                        email!.isEmpty)
+                                                    ? 'Not provided'
+                                                    : email!,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              // My Ratings Section
+                              _buildMyRatingsSection(),
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: _showLogoutConfirmation,
+                                  child: const Text(
+                                    'Logout',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               ),
             ),
     );
@@ -589,32 +715,37 @@ class _ProfileViewState extends State<ProfileView> {
             ),
           ] else ...[
             const SizedBox(height: 12),
-            ..._userRatings.entries.map((entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      entry.key,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+            ..._userRatings.entries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.key,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(5, (i) => Icon(
-                      Icons.star,
-                      size: 18,
-                      color: i < entry.value
-                          ? Colors.orange
-                          : Colors.grey.shade300,
-                    )),
-                  ),
-                ],
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        5,
+                        (i) => Icon(
+                          Icons.star,
+                          size: 18,
+                          color: i < entry.value
+                              ? Colors.orange
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
         ],
       ),

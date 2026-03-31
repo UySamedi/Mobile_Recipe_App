@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:get/get.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:url_launcher/url_launcher.dart";
+import "dart:convert";
 
 import "../../models/recipe.dart";
 import "../../services/recipe_api.dart";
@@ -22,6 +23,56 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
   bool _isSubmitting = false;
   bool _hasRated = false;
 
+  String _normalizeScopePart(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9@._-]'), '_');
+  }
+
+  String? _extractUserIdentityFromToken(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length < 2) {
+        return null;
+      }
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+
+      final userId = decoded['userId'] ?? decoded['id'] ?? decoded['sub'];
+      if (userId != null && userId.toString().trim().isNotEmpty) {
+        return 'id_${_normalizeScopePart(userId.toString())}';
+      }
+
+      final email = decoded['email'];
+      if (email is String && email.trim().isNotEmpty) {
+        return 'email_${_normalizeScopePart(email)}';
+      }
+    } catch (_) {
+      // Ignore malformed token payload and use fallback sources.
+    }
+    return null;
+  }
+
+  String _ratingsKeyForUser(SharedPreferences prefs) {
+    final token = prefs.getString('token');
+    if (token != null && token.trim().isNotEmpty) {
+      final fromToken = _extractUserIdentityFromToken(token);
+      if (fromToken != null && fromToken.isNotEmpty) {
+        return 'user_ratings_$fromToken';
+      }
+    }
+
+    final rawEmail = (prefs.getString('email') ?? '').trim();
+    if (rawEmail.isNotEmpty) {
+      return 'user_ratings_email_${_normalizeScopePart(rawEmail)}';
+    }
+
+    return 'user_ratings_unknown';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -30,23 +81,87 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
 
   Future<void> _loadSavedRating() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getInt('rating_${widget.recipe.id}');
+    int? saved;
+
+    // User-scoped store so each account sees only its own ratings.
+    final rawRatings = prefs.getString(_ratingsKeyForUser(prefs));
+    if (rawRatings != null && rawRatings.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawRatings);
+        if (decoded is Map<String, dynamic>) {
+          final item = decoded['${widget.recipe.id}'];
+          if (item is Map<String, dynamic>) {
+            final value = item['rating'];
+            if (value is int) {
+              saved = value;
+            } else if (value is num) {
+              saved = value.toInt();
+            }
+          }
+        }
+      } catch (_) {
+        // Ignore malformed local cache.
+      }
+    }
+
     if (saved != null && mounted) {
       setState(() {
-        userRating = saved;
+        userRating = saved!;
         _hasRated = true;
       });
+    } else if (mounted) {
+      // Important for account switching: clear stale in-memory rating state.
+      setState(() {
+        userRating = 0;
+        _hasRated = false;
+      });
     }
+  }
+
+  Future<void> _persistUserRating(int stars) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Legacy keys (already used in profile and kept for compatibility)
+    await prefs.setInt('rating_${widget.recipe.id}', stars);
+    await prefs.setString(
+      'rating_name_${widget.recipe.id}',
+      widget.recipe.name,
+    );
+
+    // Canonical user-scoped rating store keyed by recipe id.
+    Map<String, dynamic> ratingStore = {};
+    final scopedKey = _ratingsKeyForUser(prefs);
+    final raw = prefs.getString(scopedKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          ratingStore = decoded;
+        }
+      } catch (_) {
+        ratingStore = {};
+      }
+    }
+
+    ratingStore['${widget.recipe.id}'] = {
+      'recipeId': widget.recipe.id,
+      'recipeName': widget.recipe.name,
+      'rating': stars,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+    await prefs.setString(scopedKey, jsonEncode(ratingStore));
   }
 
   @override
   Widget build(BuildContext context) {
     final steps = _splitSteps(widget.recipe.instructions);
-    final hasVideo = widget.recipe.youtubeLink != null && widget.recipe.youtubeLink!.isNotEmpty;
+    final hasVideo =
+        widget.recipe.youtubeLink != null &&
+        widget.recipe.youtubeLink!.isNotEmpty;
     final FavoritesController favoritesController =
         Get.isRegistered<FavoritesController>()
-            ? Get.find<FavoritesController>()
-            : Get.put(FavoritesController());
+        ? Get.find<FavoritesController>()
+        : Get.put(FavoritesController());
 
     return Scaffold(
       body: Stack(
@@ -76,13 +191,12 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                     Navigator.pop(context);
                   }),
                   Obx(() {
-                    final isFavorite =
-                        favoritesController.isFavorite(widget.recipe);
+                    final isFavorite = favoritesController.isFavorite(
+                      widget.recipe,
+                    );
                     return _iconButton(
                       isFavorite ? Icons.favorite : Icons.favorite_border,
-                      () {
-                        favoritesController.toggleFavorite(widget.recipe);
-                      },
+                      () => _handleFavoriteTap(favoritesController),
                       color: isFavorite ? Colors.red : Colors.black,
                     );
                   }),
@@ -99,9 +213,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: SingleChildScrollView(
                   controller: controller,
@@ -122,7 +234,11 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                           const SizedBox(width: 4),
                           Text(widget.recipe.category.name),
                           const SizedBox(width: 12),
-                          const Icon(Icons.star, size: 16, color: Colors.orange),
+                          const Icon(
+                            Icons.star,
+                            size: 16,
+                            color: Colors.orange,
+                          ),
                           const SizedBox(width: 4),
                           Text(widget.recipe.rating.toStringAsFixed(1)),
                           const SizedBox(width: 12),
@@ -175,7 +291,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                       Row(
                         children: List.generate(5, (index) {
                           return GestureDetector(
-                            onTap: (_isSubmitting || _hasRated)
+                            onTap: _isSubmitting
                                 ? null
                                 : () => _submitRating(index + 1),
                             child: Icon(
@@ -202,9 +318,13 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                         Row(
                           children: [
                             Icon(
-                              _hasRated ? Icons.check_circle : Icons.info_outline,
+                              _hasRated
+                                  ? Icons.check_circle
+                                  : Icons.info_outline,
                               size: 16,
-                              color: _hasRated ? Colors.green : Colors.grey.shade600,
+                              color: _hasRated
+                                  ? Colors.green
+                                  : Colors.grey.shade600,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -212,7 +332,9 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                                   ? "You rated $userRating star${userRating > 1 ? 's' : ''}"
                                   : "You rated: $userRating star${userRating > 1 ? 's' : ''}",
                               style: TextStyle(
-                                color: _hasRated ? Colors.green : Colors.grey.shade600,
+                                color: _hasRated
+                                    ? Colors.green
+                                    : Colors.grey.shade600,
                               ),
                             ),
                           ],
@@ -234,31 +356,52 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                           children: [
                             _nutritionChip(
                               "Calories",
-                              _formatValue(widget.recipe.nutrition!.calories, "kcal"),
+                              _formatValue(
+                                widget.recipe.nutrition!.calories,
+                                "kcal",
+                              ),
                             ),
                             _nutritionChip(
                               "Protein",
-                              _formatValue(widget.recipe.nutrition!.proteinGrams, "g"),
+                              _formatValue(
+                                widget.recipe.nutrition!.proteinGrams,
+                                "g",
+                              ),
                             ),
                             _nutritionChip(
                               "Carbs",
-                              _formatValue(widget.recipe.nutrition!.carbsGrams, "g"),
+                              _formatValue(
+                                widget.recipe.nutrition!.carbsGrams,
+                                "g",
+                              ),
                             ),
                             _nutritionChip(
                               "Fat",
-                              _formatValue(widget.recipe.nutrition!.fatGrams, "g"),
+                              _formatValue(
+                                widget.recipe.nutrition!.fatGrams,
+                                "g",
+                              ),
                             ),
                             _nutritionChip(
                               "Fiber",
-                              _formatValue(widget.recipe.nutrition!.fiberGrams, "g"),
+                              _formatValue(
+                                widget.recipe.nutrition!.fiberGrams,
+                                "g",
+                              ),
                             ),
                             _nutritionChip(
                               "Sugar",
-                              _formatValue(widget.recipe.nutrition!.sugarGrams, "g"),
+                              _formatValue(
+                                widget.recipe.nutrition!.sugarGrams,
+                                "g",
+                              ),
                             ),
                             _nutritionChip(
                               "Sodium",
-                              _formatValue(widget.recipe.nutrition!.sodiumMg, "mg"),
+                              _formatValue(
+                                widget.recipe.nutrition!.sodiumMg,
+                                "mg",
+                              ),
                             ),
                           ],
                         ),
@@ -305,9 +448,9 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                           label: const Text("Watch on YouTube"),
                           onPressed: hasVideo
                               ? () => _openYoutubeLink(
-                                    context,
-                                    widget.recipe.youtubeLink!,
-                                  )
+                                  context,
+                                  widget.recipe.youtubeLink!,
+                                )
                               : null,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.all(14),
@@ -350,11 +493,9 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
               ),
               onPressed: () {
                 Navigator.of(ctx).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const Loginscreen(),
-                  ),
-                );
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const Loginscreen()));
               },
               child: const Text('Login', style: TextStyle(color: Colors.white)),
             ),
@@ -366,13 +507,9 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
 
     setState(() => _isSubmitting = true);
     try {
-      await RecipeApi.rateRecipe(
-        recipeId: widget.recipe.id,
-        stars: stars,
-      );
+      await RecipeApi.rateRecipe(recipeId: widget.recipe.id, stars: stars);
       if (!mounted) return;
-      await prefs.setInt('rating_${widget.recipe.id}', stars);
-      await prefs.setString('rating_name_${widget.recipe.id}', widget.recipe.name);
+      await _persistUserRating(stars);
       if (!mounted) return;
       setState(() {
         userRating = stars;
@@ -389,9 +526,15 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
+      final errorText = e.toString();
+      final message = errorText.contains('(403)')
+          ? errorText.replaceFirst('Exception: ', '')
+          : errorText.contains('(401)')
+          ? 'Session expired. Please log in again.'
+          : 'Failed to rate: $e';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Failed to rate: $e"),
+          content: Text(message),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -399,29 +542,84 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
     }
   }
 
-  static Future<void> _openYoutubeLink(
-    BuildContext context,
-    String url,
-  ) async {
+  Future<void> _handleFavoriteTap(FavoritesController controller) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Login Required'),
+          content: const Text('Please log in to add recipes to favorites.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4CB050),
+              ),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const Loginscreen()));
+              },
+              child: const Text('Login', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final before = controller.isFavorite(widget.recipe);
+    await controller.toggleFavorite(widget.recipe);
+    if (!mounted) return;
+
+    if (controller.errorMessage.value.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed: ${controller.errorMessage.value}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    final after = controller.isFavorite(widget.recipe);
+    final added = !before && after;
+    final removed = before && !after;
+    if (added || removed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            added ? 'Added to favorites' : 'Removed from favorites',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  static Future<void> _openYoutubeLink(BuildContext context, String url) async {
     final uri = _normalizeYoutubeUrl(url);
     if (uri == null) {
       _showErrorSnack(context, "Invalid YouTube link.");
       return;
     }
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (launched) {
       return;
     }
     if (!context.mounted) {
       return;
     }
-    final fallback = await launchUrl(
-      uri,
-      mode: LaunchMode.platformDefault,
-    );
+    final fallback = await launchUrl(uri, mode: LaunchMode.platformDefault);
     if (!context.mounted) {
       return;
     }
@@ -441,7 +639,9 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
     }
     if (uri.scheme.isEmpty) {
       final looksLikeId =
-          !cleaned.contains("/") && !cleaned.contains(".") && cleaned.length >= 8;
+          !cleaned.contains("/") &&
+          !cleaned.contains(".") &&
+          cleaned.length >= 8;
       final candidate = looksLikeId
           ? "https://www.youtube.com/watch?v=$cleaned"
           : "https://$cleaned";
@@ -451,9 +651,9 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
   }
 
   static void _showErrorSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   static List<String> _splitSteps(String instructions) {
