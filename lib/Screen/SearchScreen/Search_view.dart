@@ -52,9 +52,7 @@ class _SearchViewState extends State<SearchView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search'),
-      ),
+      appBar: AppBar(title: const Text('Search')),
       body: FutureBuilder<List<Recipe>>(
         future: _resultsFuture,
         builder: (context, snapshot) {
@@ -116,7 +114,9 @@ class _SearchViewState extends State<SearchView> {
       _allRecipesCache.isEmpty ? recipes : _allRecipesCache,
     );
     final ingredientGroups = _buildIngredientGroups(ingredientOptions);
-    if (!ingredientGroups.any((group) => group.name == _selectedIngredientGroup)) {
+    if (!ingredientGroups.any(
+      (group) => group.name == _selectedIngredientGroup,
+    )) {
       _selectedIngredientGroup = _ingredientGroupAll;
     }
     final visibleIngredientOptions = _filterIngredientOptionsByGroup(
@@ -134,37 +134,81 @@ class _SearchViewState extends State<SearchView> {
         if (ingredientOptions.isNotEmpty) ...[
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            height: 360,
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.green.shade100),
+              color: const Color(0xFFF2F2F2),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE6E6E6)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Ingredients',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Ingredients',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (_selectedIngredients.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3F7A5F),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${_selectedIngredients.length} selected',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   _selectedIngredients.isEmpty
-                      ? 'Tap ingredients to build your search'
-                      : '${_selectedIngredients.length} selected',
+                      ? 'Choose ingredients to filter recipes'
+                      : 'Tap again to remove selected ingredients',
                   style: TextStyle(
-                    color: Colors.green.shade900,
+                    color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 if (_selectedIngredients.isNotEmpty) ...[
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _selectedIngredients
-                        .map(_selectedIngredientChip)
-                        .toList(growable: false),
+                  SizedBox(
+                    height: 40,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _selectedIngredients.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final ingredientName = _selectedIngredients.elementAt(
+                          index,
+                        );
+                        return _selectedIngredientChip(ingredientName);
+                      },
+                    ),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -172,12 +216,17 @@ class _SearchViewState extends State<SearchView> {
                   controller: _ingredientFilterController,
                   decoration: InputDecoration(
                     isDense: true,
-                    hintText: 'Filter ingredient chips',
-                    prefixIcon: const Icon(Icons.tune, size: 18),
+                    hintText: 'Search ingredients',
+                    hintStyle: TextStyle(color: Colors.grey.shade600),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      size: 18,
+                      color: Colors.grey.shade700,
+                    ),
                     suffixIcon: _ingredientFilterQuery.isEmpty
                         ? null
                         : IconButton(
-                            icon: const Icon(Icons.close, size: 18),
+                            icon: const Icon(Icons.close_rounded, size: 18),
                             onPressed: () {
                               setState(() {
                                 _ingredientFilterQuery = '';
@@ -188,12 +237,25 @@ class _SearchViewState extends State<SearchView> {
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.green.shade100),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: const Color(0xFFE0E0E0),
+                        width: 1.2,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.green.shade100),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: const Color(0xFFE0E0E0),
+                        width: 1.2,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: const Color(0xFF3F7A5F),
+                        width: 1.6,
+                      ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
@@ -205,7 +267,7 @@ class _SearchViewState extends State<SearchView> {
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
-                  height: 36,
+                  height: 40,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: ingredientGroups
@@ -214,48 +276,37 @@ class _SearchViewState extends State<SearchView> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                if (filteredIngredientOptions.isEmpty)
-                  Text(
-                    'No ingredients match this filter.',
-                    style: TextStyle(color: Colors.grey.shade700),
-                  )
-                else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: filteredIngredientOptions.map((option) {
-                      final selected = _selectedIngredients.contains(option.name);
-                      return FilterChip(
-                        label: Text(
-                          '${option.name} (${option.count})',
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                        selected: selected,
-                        onSelected: (value) {
-                          _onIngredientChipToggled(option.name, value);
-                        },
-                        selectedColor: Colors.green.shade200,
-                        backgroundColor: Colors.white,
-                        side: BorderSide(
-                          color: selected
-                              ? Colors.green.shade500
-                              : Colors.grey.shade300,
-                        ),
-                        checkmarkColor: Colors.green.shade900,
-                      );
-                    }).toList(growable: false),
-                  ),
                 if (_selectedIngredients.isNotEmpty) ...[
-                  const SizedBox(height: 10),
                   TextButton.icon(
                     onPressed: _clearIngredientSelection,
-                    icon: const Icon(Icons.clear_all),
+                    icon: const Icon(Icons.clear_all_rounded),
                     label: const Text('Clear selected ingredients'),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.green.shade900,
                     ),
                   ),
+                  const SizedBox(height: 8),
                 ],
+                Expanded(
+                  child: filteredIngredientOptions.isEmpty
+                      ? Align(
+                          alignment: Alignment.topLeft,
+                          child: Text(
+                            'No ingredients match this filter.',
+                            style: TextStyle(color: Colors.grey.shade700),
+                          ),
+                        )
+                      : Scrollbar(
+                          child: ListView.builder(
+                            itemCount: filteredIngredientOptions.length,
+                            itemBuilder: (context, index) {
+                              return _ingredientCard(
+                                filteredIngredientOptions[index],
+                              );
+                            },
+                          ),
+                        ),
+                ),
               ],
             ),
           ),
@@ -291,9 +342,7 @@ class _SearchViewState extends State<SearchView> {
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(16),
-            sliver: SliverToBoxAdapter(
-              child: topSection,
-            ),
+            sliver: SliverToBoxAdapter(child: topSection),
           ),
           if (results.isEmpty)
             SliverFillRemaining(
@@ -307,16 +356,13 @@ class _SearchViewState extends State<SearchView> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index.isOdd) {
-                      return const SizedBox(height: 12);
-                    }
-                    final recipe = results[index ~/ 2];
-                    return _recipeRow(context, recipe);
-                  },
-                  childCount: results.isEmpty ? 0 : results.length * 2 - 1,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index.isOdd) {
+                    return const SizedBox(height: 12);
+                  }
+                  final recipe = results[index ~/ 2];
+                  return _recipeRow(context, recipe);
+                }, childCount: results.isEmpty ? 0 : results.length * 2 - 1),
               ),
             ),
         ],
@@ -360,21 +406,24 @@ class _SearchViewState extends State<SearchView> {
   }
 
   void _loadCategories() {
-    RecipeApi.fetchCategories().then((value) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _categoriesCache = value;
-      });
-    }).catchError((_) {});
+    RecipeApi.fetchCategories()
+        .then((value) {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            _categoriesCache = value;
+          });
+        })
+        .catchError((_) {});
   }
 
   void _runSearch() {
     final names = _parseIngredients(_query);
     setState(() {
-      _resultsFuture =
-          names.isEmpty ? _allRecipesFuture : RecipeApi.searchByIngredients(names);
+      _resultsFuture = names.isEmpty
+          ? _allRecipesFuture
+          : RecipeApi.searchByIngredients(names);
     });
   }
 
@@ -444,13 +493,13 @@ class _SearchViewState extends State<SearchView> {
   }
 
   List<Recipe> _sortByRating(List<Recipe> recipes) {
-    final sorted = [...recipes]
-      ..sort((a, b) => b.rating.compareTo(a.rating));
+    final sorted = [...recipes]..sort((a, b) => b.rating.compareTo(a.rating));
     return sorted;
   }
 
   List<_IngredientOption> _buildIngredientOptions(List<Recipe> recipes) {
     final Map<String, int> counts = {};
+    final Map<String, String> imagesByName = {};
     for (final recipe in recipes) {
       for (final item in recipe.ingredients) {
         final name = item.ingredient.name.trim();
@@ -458,24 +507,30 @@ class _SearchViewState extends State<SearchView> {
           continue;
         }
         counts.update(name, (value) => value + 1, ifAbsent: () => 1);
+        final imageUrl = _resolveIngredientImageUrl(item);
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          imagesByName.putIfAbsent(name, () => imageUrl);
+        }
       }
     }
-    final options = counts.entries
-        .map(
-          (entry) => _IngredientOption(
-            entry.key,
-            entry.value,
-            _classifyIngredientGroup(entry.key),
-          ),
-        )
-        .toList()
-      ..sort((a, b) {
-        final countCompare = b.count.compareTo(a.count);
-        if (countCompare != 0) {
-          return countCompare;
-        }
-        return a.name.compareTo(b.name);
-      });
+    final options =
+        counts.entries
+            .map(
+              (entry) => _IngredientOption(
+                entry.key,
+                entry.value,
+                _classifyIngredientGroup(entry.key),
+                imagesByName[entry.key],
+              ),
+            )
+            .toList()
+          ..sort((a, b) {
+            final countCompare = b.count.compareTo(a.count);
+            if (countCompare != 0) {
+              return countCompare;
+            }
+            return a.name.compareTo(b.name);
+          });
     const maxChips = 18;
     if (options.length <= maxChips) {
       return options;
@@ -483,7 +538,9 @@ class _SearchViewState extends State<SearchView> {
     return options.sublist(0, maxChips);
   }
 
-  List<_IngredientGroup> _buildIngredientGroups(List<_IngredientOption> options) {
+  List<_IngredientGroup> _buildIngredientGroups(
+    List<_IngredientOption> options,
+  ) {
     final Map<String, int> groupCounts = {};
     for (final option in options) {
       groupCounts.update(option.group, (value) => value + 1, ifAbsent: () => 1);
@@ -527,7 +584,12 @@ class _SearchViewState extends State<SearchView> {
   String _classifyIngredientGroup(String ingredientName) {
     final value = ingredientName.toLowerCase();
 
-    if (_containsAny(value, const <String>['sauce', 'paste', 'ketchup', 'mayo'])) {
+    if (_containsAny(value, const <String>[
+      'sauce',
+      'paste',
+      'ketchup',
+      'mayo',
+    ])) {
       return 'Sauces & Pastes';
     }
     if (_containsAny(value, const <String>[
@@ -607,6 +669,18 @@ class _SearchViewState extends State<SearchView> {
     return false;
   }
 
+  String? _resolveIngredientImageUrl(RecipeIngredient item) {
+    final direct = item.imageUrl?.trim();
+    if (direct != null && direct.isNotEmpty) {
+      return direct;
+    }
+    final nested = item.ingredient.imageUrl?.trim();
+    if (nested != null && nested.isNotEmpty) {
+      return nested;
+    }
+    return null;
+  }
+
   void _clearIngredientSelection() {
     setState(() {
       _selectedIngredients.clear();
@@ -615,15 +689,148 @@ class _SearchViewState extends State<SearchView> {
     });
   }
 
+  Widget _ingredientCard(_IngredientOption option) {
+    final isSelected = _selectedIngredients.contains(option.name);
+    final iconData = _ingredientIconFor(option.group);
+    final imageUrl = option.imageUrl;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: isSelected ? const Color(0xFFE9F3ED) : const Color(0xFFF7F7F7),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () {
+            _onIngredientChipToggled(option.name, !isSelected);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected
+                    ? const Color(0xFFBFD6C7)
+                    : const Color(0xFFE6E6E6),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        option.name,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Appears in ${option.count} recipes',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: isSelected
+                          ? const Color(0xFFD7EBDC)
+                          : const Color(0xFFEAEAEA),
+                      child: ClipOval(
+                        child: imageUrl != null && imageUrl.isNotEmpty
+                            ? Image.network(
+                                imageUrl,
+                                width: 52,
+                                height: 52,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    iconData,
+                                    color: const Color(0xFF3F7A5F),
+                                  );
+                                },
+                              )
+                            : Icon(iconData, color: const Color(0xFF3F7A5F)),
+                      ),
+                    ),
+                    if (isSelected)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF3F7A5F),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _ingredientIconFor(String group) {
+    switch (group) {
+      case 'Vegetables':
+        return Icons.eco_outlined;
+      case 'Meat & Seafood':
+        return Icons.set_meal_outlined;
+      case 'Dairy & Eggs':
+        return Icons.egg_alt_outlined;
+      case 'Herbs & Spices':
+        return Icons.spa_outlined;
+      case 'Sauces & Pastes':
+        return Icons.soup_kitchen_outlined;
+      case 'Staples':
+        return Icons.rice_bowl_outlined;
+      case 'Fruits':
+        return Icons.apple_outlined;
+      default:
+        return Icons.kitchen_outlined;
+    }
+  }
+
   Widget _selectedIngredientChip(String name) {
     return InputChip(
-      label: Text(name),
+      label: Text(
+        name,
+        style: TextStyle(
+          color: Colors.green.shade900,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       onDeleted: () {
         _onIngredientChipToggled(name, false);
       },
       deleteIcon: const Icon(Icons.close, size: 16),
-      backgroundColor: Colors.white,
-      side: BorderSide(color: Colors.green.shade200),
+      deleteIconColor: Colors.green.shade900,
+      backgroundColor: Colors.green.shade100,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      side: BorderSide(color: Colors.green.shade300),
     );
   }
 
@@ -632,7 +839,13 @@ class _SearchViewState extends State<SearchView> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
-        label: Text('${group.name} (${group.count})'),
+        label: Text(
+          '${group.name} (${group.count})',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.green.shade900 : Colors.grey.shade800,
+          ),
+        ),
         selected: isSelected,
         onSelected: (_) {
           setState(() {
@@ -641,6 +854,12 @@ class _SearchViewState extends State<SearchView> {
         },
         selectedColor: Colors.green.shade300,
         backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        side: BorderSide(
+          color: isSelected ? Colors.green.shade400 : Colors.grey.shade300,
+        ),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
       ),
     );
   }
@@ -669,9 +888,7 @@ class _SearchViewState extends State<SearchView> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => RecipeDetailView(recipe: recipe),
-          ),
+          MaterialPageRoute(builder: (_) => RecipeDetailView(recipe: recipe)),
         );
       },
       child: Container(
@@ -679,10 +896,7 @@ class _SearchViewState extends State<SearchView> {
           borderRadius: BorderRadius.circular(12),
           color: Colors.white,
           boxShadow: [
-            BoxShadow(
-              blurRadius: 6,
-              color: Colors.black.withOpacity(0.08),
-            ),
+            BoxShadow(blurRadius: 6, color: Colors.black.withOpacity(0.08)),
           ],
         ),
         padding: const EdgeInsets.all(12),
@@ -776,11 +990,12 @@ class _CategoryFilter {
 }
 
 class _IngredientOption {
-  const _IngredientOption(this.name, this.count, this.group);
+  const _IngredientOption(this.name, this.count, this.group, this.imageUrl);
 
   final String name;
   final int count;
   final String group;
+  final String? imageUrl;
 }
 
 class _IngredientGroup {
