@@ -10,6 +10,7 @@ import "../models/recipe.dart";
 class RecipeApi {
   static String get _endpoint => "${_baseUrl()}/api/recipes";
   static String get _categoriesEndpoint => "${_baseUrl()}/api/categories";
+  static String get _ingredientsEndpoint => "${_baseUrl()}/api/ingredients";
   static String get _searchEndpoint =>
       "${_baseUrl()}/api/recipes/searchByIngredients";
 
@@ -170,6 +171,23 @@ class RecipeApi {
     return decoded
         .map(Category.fromDynamic)
         .where((category) => category.name.trim().isNotEmpty)
+        .toList();
+  }
+
+  static Future<List<Ingredient>> fetchAllIngredients() async {
+    final response = await http.get(Uri.parse(_ingredientsEndpoint));
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load ingredients (${response.statusCode}).");
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw Exception("Unexpected ingredients response.");
+    }
+
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map(Ingredient.fromJson)
         .toList();
   }
 

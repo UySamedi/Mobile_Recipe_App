@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../models/recipe.dart';
 import '../../services/recipe_api.dart';
@@ -26,26 +28,31 @@ class _SearchViewState extends State<SearchView> {
 
   late Future<List<Recipe>> _resultsFuture;
   late Future<List<Recipe>> _allRecipesFuture;
-  final TextEditingController _ingredientFilterController =
+  late Future<List<Ingredient>> _allIngredientsFuture;
+  final TextEditingController _searchController =
       TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
   String _query = '';
-  String _ingredientFilterQuery = '';
+  String _searchQuery = '';
   String? _selectedCategoryName;
   String _selectedIngredientGroup = _ingredientGroupAll;
   final Set<String> _selectedIngredients = <String>{};
+  bool _isScanningImage = false;
   List<Recipe> _allRecipesCache = const <Recipe>[];
   List<Category> _categoriesCache = const <Category>[];
+  List<Ingredient> _allIngredientsCache = const <Ingredient>[];
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
+    _loadAllIngredients();
     _refreshAllRecipes(updateResults: true);
   }
 
   @override
   void dispose() {
-    _ingredientFilterController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -108,8 +115,36 @@ class _SearchViewState extends State<SearchView> {
         !categories.any((category) => category.id == _selectedCategoryName)) {
       _selectedCategoryName = null;
     }
-    final filtered = _filterByCategory(recipes, _selectedCategoryName);
-    final results = _sortByRating(filtered);
+    
+    // Apply search filter
+    List<Recipe> results;
+    
+    // Priority 1: If ingredients are selected by clicking, recipes are already filtered by API
+    if (_selectedIngredients.isNotEmpty) {
+      // recipes from FutureBuilder are already filtered by API searchByIngredients
+      results = _sortByRating(recipes);
+    }
+    // Priority 2: If search text exists, filter locally
+    else if (_searchQuery.isNotEmpty) {
+      final filtered = _filterByCategory(recipes, _selectedCategoryName);
+      
+      // First, try to filter by ingredients in search text
+      final recipesByIngredient = _filterRecipesByIngredientsSearch(filtered, _searchQuery);
+      
+      if (recipesByIngredient.isNotEmpty) {
+        // Found recipes with matching ingredients
+        results = _sortByRating(recipesByIngredient);
+      } else {
+        // No ingredient match - search by recipe name/description/category
+        results = _sortByRating(_filterByRecipeSearch(filtered, _searchQuery));
+      }
+    }
+    // No search - show all with category filter
+    else {
+      final filtered = _filterByCategory(recipes, _selectedCategoryName);
+      results = _sortByRating(filtered);
+    }
+
     final ingredientOptions = _buildIngredientOptions(
       _allRecipesCache.isEmpty ? recipes : _allRecipesCache,
     );
@@ -123,14 +158,88 @@ class _SearchViewState extends State<SearchView> {
       ingredientOptions,
       _selectedIngredientGroup,
     );
-    final filteredIngredientOptions = _filterIngredientOptionsByText(
+    
+    // Filter ingredients by search query as well
+    final ingredientListToShow = _filterIngredientOptionsByText(
       visibleIngredientOptions,
-      _ingredientFilterQuery,
+      _searchQuery,
     );
 
     final topSection = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: 'Search recipes & ingredients',
+            hintStyle: TextStyle(color: Colors.grey.shade600),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: Colors.grey.shade700,
+            ),
+            suffixIconConstraints: const BoxConstraints(minHeight: 24, minWidth: 96),
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_searchQuery.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    onPressed: () {
+                      setState(() {
+                        _searchQuery = '';
+                        _query = '';
+                        _searchController.clear();
+                        _resultsFuture = _allRecipesFuture;
+                      });
+                    },
+                  ),
+                IconButton(
+                  tooltip: 'Scan ingredients from image',
+                  icon: _isScanningImage
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.document_scanner_outlined, size: 18),
+                  onPressed: _isScanningImage ? null : _scanIngredientsFromImage,
+                ),
+              ],
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: const Color(0xFFE0E0E0),
+                width: 1.2,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: const Color(0xFFE0E0E0),
+                width: 1.2,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: const Color(0xFF3F7A5F),
+                width: 1.6,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value.trim();
+            });
+          },
+        ),
+        const SizedBox(height: 16),
         if (ingredientOptions.isNotEmpty) ...[
           Container(
             width: double.infinity,
@@ -142,7 +251,7 @@ class _SearchViewState extends State<SearchView> {
               border: Border.all(color: const Color(0xFFE6E6E6)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, 3),
                 ),
@@ -210,71 +319,18 @@ class _SearchViewState extends State<SearchView> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 10),
-                ],
-                TextField(
-                  controller: _ingredientFilterController,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: 'Search ingredients',
-                    hintStyle: TextStyle(color: Colors.grey.shade600),
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      size: 18,
-                      color: Colors.grey.shade700,
-                    ),
-                    suffixIcon: _ingredientFilterQuery.isEmpty
-                        ? null
-                        : IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 18),
-                            onPressed: () {
-                              setState(() {
-                                _ingredientFilterQuery = '';
-                                _ingredientFilterController.clear();
-                              });
-                            },
-                          ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFE0E0E0),
-                        width: 1.2,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFE0E0E0),
-                        width: 1.2,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: const Color(0xFF3F7A5F),
-                        width: 1.6,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _ingredientFilterQuery = value.trim();
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 40,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: ingredientGroups
-                        .map(_ingredientGroupChip)
-                        .toList(growable: false),
-                  ),
-                ),
+                   const SizedBox(height: 10),
+                 ],
+                 const SizedBox(height: 10),
+                 SizedBox(
+                   height: 40,
+                   child: ListView(
+                     scrollDirection: Axis.horizontal,
+                     children: ingredientGroups
+                         .map(_ingredientGroupChip)
+                         .toList(growable: false),
+                   ),
+                 ),
                 const SizedBox(height: 10),
                 if (_selectedIngredients.isNotEmpty) ...[
                   TextButton.icon(
@@ -288,20 +344,20 @@ class _SearchViewState extends State<SearchView> {
                   const SizedBox(height: 8),
                 ],
                 Expanded(
-                  child: filteredIngredientOptions.isEmpty
+                  child: ingredientListToShow.isEmpty
                       ? Align(
                           alignment: Alignment.topLeft,
                           child: Text(
-                            'No ingredients match this filter.',
+                            'No ingredients available.',
                             style: TextStyle(color: Colors.grey.shade700),
                           ),
                         )
                       : Scrollbar(
                           child: ListView.builder(
-                            itemCount: filteredIngredientOptions.length,
+                            itemCount: ingredientListToShow.length,
                             itemBuilder: (context, index) {
                               return _ingredientCard(
-                                filteredIngredientOptions[index],
+                                ingredientListToShow[index],
                               );
                             },
                           ),
@@ -328,7 +384,7 @@ class _SearchViewState extends State<SearchView> {
           const SizedBox(height: 16),
         ],
         Text(
-          _query.trim().isEmpty
+          (_searchQuery.trim().isEmpty && _selectedIngredients.isEmpty)
               ? 'Popular recipes'
               : 'Results (${results.length})',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -418,6 +474,23 @@ class _SearchViewState extends State<SearchView> {
         .catchError((_) {});
   }
 
+  void _loadAllIngredients() {
+    _allIngredientsFuture = RecipeApi.fetchAllIngredients();
+    _allIngredientsFuture
+        .then((value) {
+          if (!mounted) {
+            return;
+          }
+          // Force rebuild with new ingredients
+          setState(() {
+            _allIngredientsCache = value;
+          });
+        })
+        .catchError((error) {
+          // If API fails, silently continue with fallback (recipe-based ingredients)
+        });
+  }
+
   void _runSearch() {
     final names = _parseIngredients(_query);
     setState(() {
@@ -425,6 +498,81 @@ class _SearchViewState extends State<SearchView> {
           ? _allRecipesFuture
           : RecipeApi.searchByIngredients(names);
     });
+  }
+
+  Future<void> _scanIngredientsFromImage() async {
+    if (_isScanningImage) {
+      return;
+    }
+
+    setState(() {
+      _isScanningImage = true;
+    });
+
+    try {
+      final pickedImage = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (pickedImage == null) {
+        return;
+      }
+
+      final inputImage = InputImage.fromFilePath(pickedImage.path);
+      final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+      try {
+        final recognizedText = await textRecognizer.processImage(inputImage);
+        final extractedText = _normalizeRecognizedText(recognizedText.text);
+
+        if (extractedText.isEmpty) {
+          _showSearchMessage('No readable text was found in the image.');
+          return;
+        }
+
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _searchController.value = TextEditingValue(
+            text: extractedText,
+            selection: TextSelection.collapsed(offset: extractedText.length),
+          );
+          _query = extractedText;
+          _searchQuery = extractedText;
+        });
+        _runSearch();
+      } finally {
+        textRecognizer.close();
+      }
+    } catch (_) {
+      _showSearchMessage('Could not scan text from the selected image.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isScanningImage = false;
+        });
+      }
+    }
+  }
+
+  String _normalizeRecognizedText(String rawText) {
+    return rawText
+        .split(RegExp(r'[\n\r]+'))
+        .map((line) => line.replaceAll(RegExp(r'^[•\-\*\u2022\s]+'), '').trim())
+        .where((line) => line.isNotEmpty)
+        .join(', ')
+        .trim();
+  }
+
+  void _showSearchMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   void _onIngredientChipToggled(String name, bool selected) {
@@ -492,6 +640,37 @@ class _SearchViewState extends State<SearchView> {
         .toList();
   }
 
+  List<Recipe> _filterRecipesByIngredientsSearch(List<Recipe> recipes, String query) {
+    if (query.trim().isEmpty) {
+      return recipes;
+    }
+    
+    final searchQuery = query.trim();
+    
+    // Filter recipes that have ANY ingredient containing the search query
+    return recipes.where((recipe) {
+      return recipe.ingredients.any((item) {
+        final ingredientName = item.ingredient.name.trim();
+        return ingredientName.contains(searchQuery);
+      });
+    }).toList();
+  }
+
+  List<Recipe> _filterByRecipeSearch(List<Recipe> recipes, String query) {
+    if (query.trim().isEmpty) {
+      return recipes;
+    }
+    
+    final searchQuery = query.trim();
+    
+    return recipes.where((recipe) {
+      final nameMatch = recipe.name.contains(searchQuery);
+      final descMatch = recipe.description.contains(searchQuery);
+      final categoryMatch = recipe.category.name.contains(searchQuery);
+      return nameMatch || descMatch || categoryMatch;
+    }).toList();
+  }
+
   List<Recipe> _sortByRating(List<Recipe> recipes) {
     final sorted = [...recipes]..sort((a, b) => b.rating.compareTo(a.rating));
     return sorted;
@@ -500,6 +679,8 @@ class _SearchViewState extends State<SearchView> {
   List<_IngredientOption> _buildIngredientOptions(List<Recipe> recipes) {
     final Map<String, int> counts = {};
     final Map<String, String> imagesByName = {};
+
+    // Count how many recipes contain each ingredient
     for (final recipe in recipes) {
       for (final item in recipe.ingredients) {
         final name = item.ingredient.name.trim();
@@ -513,29 +694,51 @@ class _SearchViewState extends State<SearchView> {
         }
       }
     }
-    final options =
-        counts.entries
-            .map(
-              (entry) => _IngredientOption(
-                entry.key,
-                entry.value,
-                _classifyIngredientGroup(entry.key),
-                imagesByName[entry.key],
-              ),
-            )
-            .toList()
-          ..sort((a, b) {
-            final countCompare = b.count.compareTo(a.count);
-            if (countCompare != 0) {
-              return countCompare;
-            }
-            return a.name.compareTo(b.name);
-          });
-    const maxChips = 18;
-    if (options.length <= maxChips) {
-      return options;
+
+    final options = <_IngredientOption>[];
+
+    // If database ingredients are loaded, use them as primary source
+    if (_allIngredientsCache.isNotEmpty) {
+      for (final ingredient in _allIngredientsCache) {
+        final name = ingredient.name.trim();
+        if (name.isEmpty) {
+          continue;
+        }
+        final recipeCount = counts[name] ?? 0;
+        final imageUrl = ingredient.imageUrl?.trim() ?? imagesByName[name];
+        options.add(
+          _IngredientOption(
+            name,
+            recipeCount,
+            _classifyIngredientGroup(name),
+            imageUrl,
+          ),
+        );
+      }
+    } else {
+      // Fallback: build from recipes if database ingredients not yet loaded
+      for (final entry in counts.entries) {
+        options.add(
+          _IngredientOption(
+            entry.key,
+            entry.value,
+            _classifyIngredientGroup(entry.key),
+            imagesByName[entry.key],
+          ),
+        );
+      }
     }
-    return options.sublist(0, maxChips);
+
+    // Sort by recipe count (descending) then by name
+    options.sort((a, b) {
+      final countCompare = b.count.compareTo(a.count);
+      if (countCompare != 0) {
+        return countCompare;
+      }
+      return a.name.compareTo(b.name);
+    });
+
+    return options;
   }
 
   List<_IngredientGroup> _buildIngredientGroups(
@@ -572,13 +775,17 @@ class _SearchViewState extends State<SearchView> {
     List<_IngredientOption> options,
     String query,
   ) {
-    final trimmed = query.trim().toLowerCase();
-    if (trimmed.isEmpty) {
+    final searchQuery = query.trim();
+    if (searchQuery.isEmpty) {
       return options;
     }
-    return options
-        .where((option) => option.name.toLowerCase().contains(trimmed))
-        .toList();
+    
+    // Direct substring matching for Khmer support
+    // Check both the ingredient name and if search text is contained
+    return options.where((option) {
+      final name = option.name.trim();
+      return name.contains(searchQuery);
+    }).toList();
   }
 
   String _classifyIngredientGroup(String ingredientName) {
@@ -895,8 +1102,8 @@ class _SearchViewState extends State<SearchView> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: Colors.white,
-          boxShadow: [
-            BoxShadow(blurRadius: 6, color: Colors.black.withOpacity(0.08)),
+            boxShadow: [
+            BoxShadow(blurRadius: 6, color: Colors.black.withValues(alpha: 0.08)),
           ],
         ),
         padding: const EdgeInsets.all(12),

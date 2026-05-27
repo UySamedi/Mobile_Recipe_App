@@ -15,7 +15,6 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   late Future<List<Recipe>> _recipesFuture;
   String? _selectedCategoryName;
-  String _searchQuery = "";
   List<Category> _categoriesCache = const <Category>[];
   final PageController _featuredPageController = PageController();
   int _featuredPageIndex = 0;
@@ -123,9 +122,8 @@ class _HomeViewState extends State<HomeView> {
       _selectedCategoryName = null;
     }
     final filtered = _filterByCategory(recipes, _selectedCategoryName);
-    final searched = _filterBySearch(filtered, _searchQuery);
-    final featured = _resolveFeatured(searched);
-    final popular = _pickPopular(searched);
+    final featured = _resolveFeatured(filtered);
+    final popular = _pickPopular(filtered);
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -133,23 +131,6 @@ class _HomeViewState extends State<HomeView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            decoration: InputDecoration(
-              hintText: "Search recipes or ingredients",
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Colors.grey.shade200,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-          ),
           const SizedBox(height: 20),
           const Text(
             "Categories",
@@ -239,21 +220,6 @@ class _HomeViewState extends State<HomeView> {
         .toList();
   }
 
-  List<Recipe> _filterBySearch(List<Recipe> recipes, String query) {
-    final trimmed = query.trim().toLowerCase();
-    if (trimmed.isEmpty) {
-      return recipes;
-    }
-    return recipes.where((recipe) {
-      final nameMatch = recipe.name.toLowerCase().contains(trimmed);
-      final descMatch = recipe.description.toLowerCase().contains(trimmed);
-      final categoryMatch = recipe.category.name.toLowerCase().contains(trimmed);
-      final ingredientMatch = recipe.ingredients.any(
-        (item) => item.ingredient.name.toLowerCase().contains(trimmed),
-      );
-      return nameMatch || descMatch || categoryMatch || ingredientMatch;
-    }).toList();
-  }
 
   List<Recipe> _resolveFeatured(List<Recipe> recipes) {
     final sourceKey = recipes.map((recipe) => recipe.id).join(",");
