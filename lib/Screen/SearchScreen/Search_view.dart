@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:image_picker/image_picker.dart';
+
 
 import '../../models/recipe.dart';
 import '../../services/recipe_api.dart';
 import '../Recipe_Detail_Screen/recipe_detail_view.dart';
+import 'ingredient_scanner_screen.dart';
 
 class SearchView extends StatefulWidget {
   const SearchView({super.key});
@@ -31,13 +31,11 @@ class _SearchViewState extends State<SearchView> {
   late Future<List<Ingredient>> _allIngredientsFuture;
   final TextEditingController _searchController =
       TextEditingController();
-  final ImagePicker _imagePicker = ImagePicker();
   String _query = '';
   String _searchQuery = '';
   String? _selectedCategoryName;
   String _selectedIngredientGroup = _ingredientGroupAll;
   final Set<String> _selectedIngredients = <String>{};
-  bool _isScanningImage = false;
   List<Recipe> _allRecipesCache = const <Recipe>[];
   List<Category> _categoriesCache = const <Category>[];
   List<Ingredient> _allIngredientsCache = const <Ingredient>[];
@@ -197,14 +195,18 @@ class _SearchViewState extends State<SearchView> {
                   ),
                 IconButton(
                   tooltip: 'Scan ingredients from image',
-                  icon: _isScanningImage
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.document_scanner_outlined, size: 18),
-                  onPressed: _isScanningImage ? null : _scanIngredientsFromImage,
+                  icon: const Icon(Icons.document_scanner_outlined, size: 18),
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const IngredientScannerScreen(),
+                      ),
+                    );
+                    if (result != null && result is String) {
+                      _processScannedText(result);
+                    }
+                  },
                 ),
               ],
             ),
@@ -500,60 +502,125 @@ class _SearchViewState extends State<SearchView> {
     });
   }
 
-  Future<void> _scanIngredientsFromImage() async {
-    if (_isScanningImage) {
+  void _processScannedText(String rawText) {
+    if (rawText.trim().isEmpty || rawText == "Upload an image to see ingredients here." || rawText.startsWith("Error reading text:") || rawText == "No text or ingredients recognized.") {
       return;
     }
 
+    final extractedText = _normalizeRecognizedText(rawText);
+    var ingredients = _parseIngredients(extractedText);
+
+    if (ingredients.isEmpty) {
+      _showSearchMessage('No ingredients were recognized in the image.');
+      return;
+    }
+
+    final matchedKnown = _matchKnownIngredients(ingredients);
+    final queryText = ingredients.join(', ');
+
     setState(() {
-      _isScanningImage = true;
+      _selectedCategoryName = null;
+      _searchController.value = TextEditingValue(
+        text: queryText,
+        selection: TextSelection.collapsed(offset: queryText.length),
+      );
+      _query = queryText;
+      _searchQuery = queryText;
+
+      if (matchedKnown.isNotEmpty) {
+        _selectedIngredients
+          ..clear()
+          ..addAll(matchedKnown);
+        _resultsFuture = RecipeApi.searchByIngredients(matchedKnown);
+      } else {
+        _selectedIngredients.clear();
+        _resultsFuture = _allRecipesFuture;
+      }
     });
 
-    try {
-      final pickedImage = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-      if (pickedImage == null) {
-        return;
+    if (matchedKnown.isEmpty) {
+      _runSearch();
+    }
+  }
+
+  List<String> _matchKnownIngredients(List<String> tokens) {
+    if (tokens.isEmpty) {
+      return const <String>[];
+    }
+
+    final availableNames = _availableIngredientNames();
+    if (availableNames.isEmpty) {
+      return const <String>[];
+    }
+
+    final matched = <String>[];
+    for (final token in tokens) {
+      final cleaned = token.trim();
+      if (cleaned.isEmpty) {
+        continue;
       }
-
-      final inputImage = InputImage.fromFilePath(pickedImage.path);
-      final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-      try {
-        final recognizedText = await textRecognizer.processImage(inputImage);
-        final extractedText = _normalizeRecognizedText(recognizedText.text);
-
-        if (extractedText.isEmpty) {
-          _showSearchMessage('No readable text was found in the image.');
-          return;
-        }
-
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          _searchController.value = TextEditingValue(
-            text: extractedText,
-            selection: TextSelection.collapsed(offset: extractedText.length),
-          );
-          _query = extractedText;
-          _searchQuery = extractedText;
-        });
-        _runSearch();
-      } finally {
-        textRecognizer.close();
-      }
-    } catch (_) {
-      _showSearchMessage('Could not scan text from the selected image.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isScanningImage = false;
-        });
+      final match = _matchIngredientName(cleaned, availableNames);
+      if (match != null) {
+        matched.add(match);
       }
     }
+
+    return matched.toSet().toList();
+  }
+
+  Set<String> _availableIngredientNames() {
+    if (_allIngredientsCache.isNotEmpty) {
+      return _allIngredientsCache
+          .map((ingredient) => ingredient.name.trim())
+          .where((name) => name.isNotEmpty)
+          .toSet();
+    }
+    if (_allRecipesCache.isNotEmpty) {
+      final names = <String>{};
+      for (final recipe in _allRecipesCache) {
+        for (final item in recipe.ingredients) {
+          final name = item.ingredient.name.trim();
+          if (name.isNotEmpty) {
+            names.add(name);
+          }
+        }
+      }
+      return names;
+    }
+    return <String>{};
+  }
+
+  String _normalizeToken(String raw) {
+    return raw
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}0-9\s]', unicode: true), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String? _matchIngredientName(String labelText, Set<String> names) {
+    final labelLower = _normalizeToken(labelText);
+    if (labelLower.isEmpty) {
+      return null;
+    }
+    for (final name in names) {
+      final nameLower = _normalizeToken(name);
+      if (nameLower.isEmpty) {
+        continue;
+      }
+      if (nameLower == labelLower) {
+        return name;
+      }
+      if (nameLower.contains(labelLower) || labelLower.contains(nameLower)) {
+        return name;
+      }
+      final labelTokens = labelLower.split(' ');
+      final nameTokens = nameLower.split(' ');
+      if (labelTokens.every(nameTokens.contains) || nameTokens.every(labelTokens.contains)) {
+        return name;
+      }
+    }
+    return null;
   }
 
   String _normalizeRecognizedText(String rawText) {

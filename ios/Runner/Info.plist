@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to scan ingredient lists.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs gallery access to upload photos of ingredients.</string>
 </dict>
 </plist>
