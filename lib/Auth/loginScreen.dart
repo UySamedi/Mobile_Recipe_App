@@ -83,7 +83,7 @@ class _LoginscreenState extends State<Loginscreen> {
                   child: Column(
                     children: [
                       const Text(
-                        'Log in',
+                        'ចូលគណនី',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
@@ -91,7 +91,7 @@ class _LoginscreenState extends State<Loginscreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Enter your email and password to securely access your account and manage your services.',
+                        'បញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់របស់អ្នក ដើម្បីចូលប្រើប្រាស់គណនី និងគ្រប់គ្រងសេវាកម្មរបស់អ្នកដោយសុវត្ថិភាព។',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 15, color: Colors.black54),
                       ),
@@ -104,7 +104,7 @@ class _LoginscreenState extends State<Loginscreen> {
                               controller: _emailController,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.person),
-                                hintText: 'Email',
+                                hintText: 'អ៊ីមែល',
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -114,7 +114,7 @@ class _LoginscreenState extends State<Loginscreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
+                                  return 'សូមបញ្ចូលអ៊ីមែលរបស់អ្នក';
                                 }
                                 return null;
                               },
@@ -125,7 +125,7 @@ class _LoginscreenState extends State<Loginscreen> {
                               obscureText: _obscurePassword,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.lock_outline),
-                                hintText: 'Password',
+                                hintText: 'ពាក្យសម្ងាត់',
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -147,10 +147,10 @@ class _LoginscreenState extends State<Loginscreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your password';
+                                  return 'សូមបញ្ចូលពាក្យសម្ងាត់របស់អ្នក';
                                 }
                                 if (value.length < 6) {
-                                  return 'Password must be at least 6 characters';
+                                  return 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងហោចណាស់ ៦ តួអក្សរ';
                                 }
                                 return null;
                               },
@@ -166,13 +166,13 @@ class _LoginscreenState extends State<Loginscreen> {
                                     });
                                   },
                                 ),
-                                const Text('Remember me'),
+                                const Text('ចងចាំខ្ញុំ'),
                                 const Spacer(),
                                 TextButton(
                                   onPressed: () {
                                     // TODO: Implement forgot password
                                   },
-                                  child: const Text('Forgot Password'),
+                                  child: const Text('ភ្លេចពាក្យសម្ងាត់'),
                                 ),
                               ],
                             ),
@@ -225,7 +225,7 @@ class _LoginscreenState extends State<Loginscreen> {
                                             ).showSnackBar(
                                               const SnackBar(
                                                 content: Text(
-                                                  'Login response missing token. Please try again.',
+                                                  'ការឆ្លើយតបការចូលគណនីបាត់ token។ សូមព្យាយាមម្តងទៀត។',
                                                 ),
                                               ),
                                             );
@@ -258,7 +258,7 @@ class _LoginscreenState extends State<Loginscreen> {
                                           ).showSnackBar(
                                             const SnackBar(
                                               content: Text(
-                                                'Login successful!',
+                                                'ចូលគណនីបានជោគជ័យ!',
                                               ),
                                             ),
                                           );
@@ -273,7 +273,7 @@ class _LoginscreenState extends State<Loginscreen> {
                                           ).showSnackBar(
                                             const SnackBar(
                                               content: Text(
-                                                'Invalid username or password',
+                                                'ឈ្មោះអ្នកប្រើប្រាស់ ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវទេ',
                                               ),
                                             ),
                                           );
@@ -285,7 +285,7 @@ class _LoginscreenState extends State<Loginscreen> {
                                           ).showSnackBar(
                                             SnackBar(
                                               content: Text(
-                                                'Login failed: ${response.body}',
+                                                'ការចូលគណនីបរាជ័យ: ${response.body}',
                                               ),
                                             ),
                                           );
@@ -296,14 +296,14 @@ class _LoginscreenState extends State<Loginscreen> {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
-                                          SnackBar(content: Text('Error: $e')),
+                                          SnackBar(content: Text('កំហុស: $e')),
                                         );
                                       }
                                     }
                                   }
                                 },
                                 child: const Text(
-                                  'Login',
+                                  'ចូលគណនី',
                                   style: TextStyle(fontSize: 18),
                                 ),
                               ),
@@ -312,13 +312,13 @@ class _LoginscreenState extends State<Loginscreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text("Don't have an account? "),
+                                const Text("មិនមានគណនីទេ? "),
                                 GestureDetector(
                                   onTap: () {
                                     Get.to(() => const Registerscreen());
                                   },
                                   child: const Text(
-                                    'Sign Up here',
+                                    'ចុះឈ្មោះនៅទីនេះ',
                                     style: TextStyle(
                                       color: Color(0xFF4CB050),
                                       fontWeight: FontWeight.bold,

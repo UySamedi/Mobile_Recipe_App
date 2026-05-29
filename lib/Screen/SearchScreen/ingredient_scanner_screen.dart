@@ -14,7 +14,7 @@ class IngredientScannerScreen extends StatefulWidget {
 
 class _IngredientScannerScreenState extends State<IngredientScannerScreen> {
   final ImagePicker _picker = ImagePicker();
-  String _foodNameDisplay = "Please upload an image of an ingredient";
+  String _foodNameDisplay = "សូមបញ្ចូលរូបភាពគ្រឿងផ្សំ";
   String? _foodNameSearch;
   bool _isProcessing = false;
 
@@ -33,14 +33,14 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> {
       final currentApiKey = dotenv.env['GEMINI_API_KEY'] ?? 'YOUR_GEMINI_API_KEY_HERE';
       if (currentApiKey == 'YOUR_GEMINI_API_KEY_HERE' || currentApiKey.trim().isEmpty) {
         setState(() {
-          _foodNameDisplay = "API Key missing! Please add your Gemini API Key to the .env file.";
+          _foodNameDisplay = "បាត់ API Key! សូមបន្ថែម Gemini API Key របស់អ្នកទៅក្នុងឯកសារ .env។";
         });
         return;
       }
 
       setState(() {
         _isProcessing = true;
-        _foodNameDisplay = "Scanning image...";
+        _foodNameDisplay = "កំពុងស្កេនរូបភាព...";
         _foodNameSearch = null;
       });
 
@@ -78,14 +78,14 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> {
           final Map<String, dynamic> data = jsonDecode(cleanText);
 
           setState(() {
-            _foodNameDisplay = data['khmer_name'] ?? 'Unknown'; 
+            _foodNameDisplay = data['khmer_name'] ?? 'មិនស្គាល់'; 
             _foodNameSearch = data['english_search_term']; 
           });
         }
       } catch (e) {
         if (!mounted) return;
         setState(() {
-          _foodNameDisplay = "There was an error scanning. Please try again.\n\nError: $e";
+          _foodNameDisplay = "មានកំហុសក្នុងការស្កេន។ សូមព្យាយាមម្តងទៀត។\n\nកំហុស: $e";
           _foodNameSearch = null;
         });
       } finally {
@@ -101,7 +101,7 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ingredient Scanner')),
+      appBar: AppBar(title: const Text('ម៉ាស៊ីនស្កេនគ្រឿងផ្សំ')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -113,12 +113,12 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> {
                 ElevatedButton.icon(
                   onPressed: () => _identifyFood(ImageSource.camera),
                   icon: const Icon(Icons.camera_alt),
-                  label: const Text('Camera'),
+                  label: const Text('កាមេរ៉ា'),
                 ),
                 ElevatedButton.icon(
                   onPressed: () => _identifyFood(ImageSource.gallery),
                   icon: const Icon(Icons.photo),
-                  label: const Text('Gallery'),
+                  label: const Text('វិចិត្រសាល'),
                 ),
               ],
             ),
@@ -150,7 +150,7 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> {
                 // Return the Khmer search term to the previous screen
                 Navigator.pop(context, _foodNameDisplay);
               },
-              child: const Text('Search with these ingredients', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: const Text('ស្វែងរកជាមួយគ្រឿងផ្សំទាំងនេះ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

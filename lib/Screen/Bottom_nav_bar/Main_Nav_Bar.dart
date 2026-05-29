@@ -53,7 +53,7 @@ class MainNavBar extends StatelessWidget {
                 AssetImage('assets/icons/home.png'),
                 size: 20,
               ),
-              text: 'Home',
+              text: 'ទំព័រដើម',
                   textStyle: TextStyle(
                   fontSize: 14, // 👈 text size
                   fontWeight: FontWeight.w600,
@@ -64,7 +64,7 @@ class MainNavBar extends StatelessWidget {
                 AssetImage('assets/icons/search.png'),
                 size: 20,
               ),
-              text: 'Search',
+              text: 'ស្វែងរក',
               textStyle: TextStyle(
                 fontSize: 14, // 👈 text size
                 fontWeight: FontWeight.w600,
@@ -74,7 +74,7 @@ class MainNavBar extends StatelessWidget {
                 AssetImage('assets/icons/favorite.png'),
                 size: 20,
               ),
-              text: 'Favorites',
+              text: 'ចំណូលចិត្ត',
               textStyle: TextStyle(
                 fontSize: 14, // 👈 text size
                 fontWeight: FontWeight.w600,
@@ -84,7 +84,7 @@ class MainNavBar extends StatelessWidget {
                 AssetImage('assets/icons/user.png'),
                 size: 20,
               ),
-              text: 'Profile',
+              text: 'គណនី',
               textStyle: TextStyle(
                 fontSize: 14, // 👈 text size
                 fontWeight: FontWeight.w600,

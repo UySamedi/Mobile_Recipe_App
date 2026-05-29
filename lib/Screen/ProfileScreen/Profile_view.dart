@@ -126,7 +126,7 @@ class _ProfileViewState extends State<ProfileView> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
+        ).showSnackBar(SnackBar(content: Text('មានកំហុសក្នុងការផ្ទុកគណនី: $e')));
       }
     } finally {
       setState(() => _isLoading = false);
@@ -237,7 +237,7 @@ class _ProfileViewState extends State<ProfileView> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+        ).showSnackBar(SnackBar(content: Text('មានកំហុសក្នុងការយករូបភាព: $e')));
       }
     }
   }
@@ -246,7 +246,7 @@ class _ProfileViewState extends State<ProfileView> {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a name')));
+      ).showSnackBar(const SnackBar(content: Text('សូមបញ្ចូលឈ្មោះ')));
       return;
     }
 
@@ -273,14 +273,14 @@ class _ProfileViewState extends State<ProfileView> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
+          const SnackBar(content: Text('គណនីបានធ្វើបច្ចុប្បន្នភាពដោយជោគជ័យ!')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error updating profile: $e')));
+        ).showSnackBar(SnackBar(content: Text('មានកំហុសក្នុងការធ្វើបច្ចុប្បន្នភាពគណនី: $e')));
       }
     } finally {
       setState(() => _isLoading = false);
@@ -308,7 +308,7 @@ class _ProfileViewState extends State<ProfileView> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
+        ).showSnackBar(SnackBar(content: Text('មានកំហុសក្នុងការចាកចេញ: $e')));
       }
     }
   }
@@ -318,19 +318,19 @@ class _ProfileViewState extends State<ProfileView> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text('Are you sure you want to logout?'),
+          title: const Text('ចាកចេញ'),
+          content: const Text('តើអ្នកពិតជាចង់ចាកចេញមែនទេ?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: const Text('បោះបង់'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 _logout();
               },
-              child: const Text('Logout', style: TextStyle(color: Colors.red)),
+              child: const Text('ចាកចេញ', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -343,7 +343,7 @@ class _ProfileViewState extends State<ProfileView> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Profile'),
+        title: const Text('គណនី'),
         elevation: 0,
         actions: [
           if (!_isEditing && token != null && token!.isNotEmpty)
@@ -369,12 +369,12 @@ class _ProfileViewState extends State<ProfileView> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'No Account',
+                    'មិនមានគណនីទេ',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Please login to view your profile',
+                    'សូមចូលគណនីដើម្បីមើលប្រវត្តិរូបរបស់អ្នក',
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                   const SizedBox(height: 32),
@@ -397,7 +397,7 @@ class _ProfileViewState extends State<ProfileView> {
                       ),
                     ),
                     child: const Text(
-                      'Login',
+                      'ចូលគណនី',
                       style: TextStyle(fontSize: 18, color: Colors.white),
                     ),
                   ),
@@ -469,7 +469,7 @@ class _ProfileViewState extends State<ProfileView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Name',
+                                'ឈ្មោះ',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -480,7 +480,7 @@ class _ProfileViewState extends State<ProfileView> {
                               TextField(
                                 controller: _nameController,
                                 decoration: InputDecoration(
-                                  hintText: 'Enter your name',
+                                  hintText: 'បញ្ចូលឈ្មោះរបស់អ្នក',
                                   filled: true,
                                   fillColor: Colors.white,
                                   border: OutlineInputBorder(
@@ -504,7 +504,7 @@ class _ProfileViewState extends State<ProfileView> {
                           Column(
                             children: [
                               Text(
-                                name ?? 'Unknown',
+                                name ?? 'មិនស្គាល់',
                                 style: const TextStyle(
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
@@ -551,7 +551,7 @@ class _ProfileViewState extends State<ProfileView> {
                                           ),
                                         )
                                       : const Text(
-                                          'Save Changes',
+                                          'រក្សាទុកការផ្លាស់ប្តូរ',
                                           style: TextStyle(fontSize: 16),
                                         ),
                                 ),
@@ -568,7 +568,7 @@ class _ProfileViewState extends State<ProfileView> {
                                   ),
                                   onPressed: _cancelEdit,
                                   child: const Text(
-                                    'Cancel',
+                                    'បោះបង់',
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: Colors.black,
@@ -606,7 +606,7 @@ class _ProfileViewState extends State<ProfileView> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               const Text(
-                                                'Email',
+                                                'អ៊ីមែល',
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.grey,
@@ -615,7 +615,7 @@ class _ProfileViewState extends State<ProfileView> {
                                               Text(
                                                 (email == null ||
                                                         email!.isEmpty)
-                                                    ? 'Not provided'
+                                                    ? 'មិនបានផ្តល់ឱ្យ'
                                                     : email!,
                                                 style: const TextStyle(
                                                   fontSize: 16,
@@ -646,7 +646,7 @@ class _ProfileViewState extends State<ProfileView> {
                                   ),
                                   onPressed: _showLogoutConfirmation,
                                   child: const Text(
-                                    'Logout',
+                                    'ចាកចេញ',
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: Colors.white,
@@ -682,7 +682,7 @@ class _ProfileViewState extends State<ProfileView> {
               Icon(Icons.star, color: Colors.orange.shade600),
               const SizedBox(width: 8),
               Text(
-                'My Ratings',
+                'ការវាយតម្លៃរបស់ខ្ញុំ',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -697,7 +697,7 @@ class _ProfileViewState extends State<ProfileView> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${_userRatings.length} rated',
+                  'បានវាយតម្លៃ ${_userRatings.length}',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -710,7 +710,7 @@ class _ProfileViewState extends State<ProfileView> {
           if (_userRatings.isEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              'You haven\'t rated any recipes yet.',
+              'អ្នកមិនទាន់បានវាយតម្លៃរូបមន្តណាមួយនៅឡើយទេ',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
           ] else ...[

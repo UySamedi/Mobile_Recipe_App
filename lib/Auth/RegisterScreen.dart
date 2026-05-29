@@ -54,12 +54,12 @@ class _RegisterscreenState extends State<Registerscreen> {
                   child: Column(
                     children: [
                       const Text(
-                        'Create Account',
+                        'បង្កើតគណនី',
                         style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Sign up to start exploring delicious recipes and save your favorites.',
+                        'ចុះឈ្មោះដើម្បីចាប់ផ្តើមស្វែងរករូបមន្តឆ្ងាញ់ៗ និងរក្សាទុកចំណូលចិត្តរបស់អ្នក។',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 15, color: Colors.black54),
                       ),
@@ -73,7 +73,7 @@ class _RegisterscreenState extends State<Registerscreen> {
                               controller: _usernameController,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.person),
-                                hintText: 'Username',
+                                hintText: 'ឈ្មោះអ្នកប្រើប្រាស់',
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -83,10 +83,10 @@ class _RegisterscreenState extends State<Registerscreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your username';
+                                  return 'សូមបញ្ចូលឈ្មោះអ្នកប្រើប្រាស់របស់អ្នក';
                                 }
                                 if (value.length < 3) {
-                                  return 'Username must be at least 3 characters';
+                                  return 'ឈ្មោះអ្នកប្រើប្រាស់ត្រូវមានយ៉ាងហោចណាស់ ៣ តួអក្សរ';
                                 }
                                 return null;
                               },
@@ -97,7 +97,7 @@ class _RegisterscreenState extends State<Registerscreen> {
                               controller: _emailController,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.email_outlined),
-                                hintText: 'Email address',
+                                hintText: 'អាសយដ្ឋានអ៊ីមែល',
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -107,10 +107,10 @@ class _RegisterscreenState extends State<Registerscreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
+                                  return 'សូមបញ្ចូលអ៊ីមែលរបស់អ្នក';
                                 }
                                 if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                                  return 'Please enter a valid email';
+                                  return 'សូមបញ្ចូលអ៊ីមែលត្រឹមត្រូវ';
                                 }
                                 return null;
                               },
@@ -122,7 +122,7 @@ class _RegisterscreenState extends State<Registerscreen> {
                               obscureText: _obscurePassword,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.lock_outline),
-                                hintText: 'Password',
+                                hintText: 'ពាក្យសម្ងាត់',
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -140,10 +140,10 @@ class _RegisterscreenState extends State<Registerscreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your password';
+                                  return 'សូមបញ្ចូលពាក្យសម្ងាត់របស់អ្នក';
                                 }
                                 if (value.length < 6) {
-                                  return 'Password must be at least 6 characters';
+                                  return 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងហោចណាស់ ៦ តួអក្សរ';
                                 }
                                 return null;
                               },
@@ -155,7 +155,7 @@ class _RegisterscreenState extends State<Registerscreen> {
                               obscureText: _obscureConfirmPassword,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.lock_outline),
-                                hintText: 'Confirm Password',
+                                hintText: 'បញ្ជាក់ពាក្យសម្ងាត់',
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -173,10 +173,10 @@ class _RegisterscreenState extends State<Registerscreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please confirm your password';
+                                  return 'សូមបញ្ជាក់ពាក្យសម្ងាត់របស់អ្នក';
                                 }
                                 if (value != _passwordController.text) {
-                                  return 'Passwords do not match';
+                                  return 'ពាក្យសម្ងាត់មិនត្រូវគ្នាទេ';
                                 }
                                 return null;
                               },
@@ -214,33 +214,33 @@ class _RegisterscreenState extends State<Registerscreen> {
 
                                         if (mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Registration successful! Please login.')),
+                                            const SnackBar(content: Text('ការចុះឈ្មោះទទួលបានជោគជ័យ! សូមចូលគណនី។')),
                                           );
                                         }
                                         Get.to(() => const Loginscreen());
                                       } else if (response.statusCode == 400) {
                                         if (mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Username or email already exists')),
+                                            const SnackBar(content: Text('ឈ្មោះអ្នកប្រើប្រាស់ ឬអ៊ីមែលមានរួចហើយ')),
                                           );
                                         }
                                       } else {
                                         if (mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('Registration failed: ${response.body}')),
+                                            SnackBar(content: Text('ការចុះឈ្មោះបរាជ័យ: ${response.body}')),
                                           );
                                         }
                                       }
                                     } catch (e) {
                                       if (mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Error: $e')),
+                                          SnackBar(content: Text('កំហុស: $e')),
                                         );
                                       }
                                     }
                                   }
                                 },
-                                child: const Text('Register', style: TextStyle(fontSize: 18)),
+                                child: const Text('ចុះឈ្មោះ', style: TextStyle(fontSize: 18)),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -248,12 +248,12 @@ class _RegisterscreenState extends State<Registerscreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text('Already have an account? '),
+                                const Text('មានគណនីរួចហើយមែនទេ? '),
                                 GestureDetector(
                                   onTap: () {
                                     Get.to(() => const Loginscreen());
                                   },
-                                  child: const Text('Log in here', style: TextStyle(color: Color(0xFF4CB050), fontWeight: FontWeight.bold)),
+                                  child: const Text('ចូលគណនីនៅទីនេះ', style: TextStyle(color: Color(0xFF4CB050), fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),

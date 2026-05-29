@@ -14,16 +14,16 @@ class SearchView extends StatefulWidget {
 }
 
 class _SearchViewState extends State<SearchView> {
-  static const String _ingredientGroupAll = 'All';
+  static const String _ingredientGroupAll = 'ទាំងអស់';
   static const List<String> _ingredientGroupOrder = <String>[
-    'Vegetables',
-    'Meat & Seafood',
-    'Dairy & Eggs',
-    'Herbs & Spices',
-    'Sauces & Pastes',
-    'Staples',
-    'Fruits',
-    'Others',
+    'បន្លែ',
+    'សាច់និងគ្រឿងសមុទ្រ',
+    'ផលិតផលទឹកដោះគោនិងស៊ុត',
+    'ឱសថនិងគ្រឿងទេស',
+    'ទឹកជ្រលក់និងគ្រឿងផ្អាប់',
+    'គ្រឿងផ្សំគោល',
+    'ផ្លែឈើ',
+    'ផ្សេងៗ',
   ];
 
   late Future<List<Recipe>> _resultsFuture;
@@ -57,7 +57,7 @@ class _SearchViewState extends State<SearchView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Search')),
+      appBar: AppBar(title: const Text('ស្វែងរក')),
       body: FutureBuilder<List<Recipe>>(
         future: _resultsFuture,
         builder: (context, snapshot) {
@@ -82,12 +82,12 @@ class _SearchViewState extends State<SearchView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Could not load recipes.',
+              'មិនអាចផ្ទុករូបមន្តបានទេ',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              error?.toString() ?? 'Unknown error',
+              error?.toString() ?? 'មានកំហុសមិនស្គាល់',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -99,7 +99,7 @@ class _SearchViewState extends State<SearchView> {
                   _runSearch();
                 }
               },
-              child: const Text('Retry'),
+              child: const Text('ព្យាយាមម្តងទៀត'),
             ),
           ],
         ),
@@ -170,7 +170,7 @@ class _SearchViewState extends State<SearchView> {
           controller: _searchController,
           decoration: InputDecoration(
             isDense: true,
-            hintText: 'Search recipes & ingredients',
+            hintText: 'ស្វែងរករូបមន្ត និង គ្រឿងផ្សំ',
             hintStyle: TextStyle(color: Colors.grey.shade600),
             prefixIcon: Icon(
               Icons.search_rounded,
@@ -194,7 +194,7 @@ class _SearchViewState extends State<SearchView> {
                     },
                   ),
                 IconButton(
-                  tooltip: 'Scan ingredients from image',
+                  tooltip: 'ស្កេនគ្រឿងផ្សំពីរូបភាព',
                   icon: const Icon(Icons.document_scanner_outlined, size: 18),
                   onPressed: () async {
                     final result = await Navigator.push(
@@ -266,7 +266,7 @@ class _SearchViewState extends State<SearchView> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Ingredients',
+                        'គ្រឿងផ្សំ',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -284,7 +284,7 @@ class _SearchViewState extends State<SearchView> {
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          '${_selectedIngredients.length} selected',
+                          'បានជ្រើសរើស ${_selectedIngredients.length}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -297,8 +297,8 @@ class _SearchViewState extends State<SearchView> {
                 const SizedBox(height: 8),
                 Text(
                   _selectedIngredients.isEmpty
-                      ? 'Choose ingredients to filter recipes'
-                      : 'Tap again to remove selected ingredients',
+                      ? 'ជ្រើសរើសគ្រឿងផ្សំដើម្បីត្រងរូបមន្ត'
+                      : 'ចុចម្តងទៀតដើម្បីលុបគ្រឿងផ្សំដែលបានជ្រើសរើស',
                   style: TextStyle(
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
@@ -338,7 +338,7 @@ class _SearchViewState extends State<SearchView> {
                   TextButton.icon(
                     onPressed: _clearIngredientSelection,
                     icon: const Icon(Icons.clear_all_rounded),
-                    label: const Text('Clear selected ingredients'),
+                    label: const Text('លុបគ្រឿងផ្សំដែលបានជ្រើសរើសទាំងអស់'),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.green.shade900,
                     ),
@@ -350,7 +350,7 @@ class _SearchViewState extends State<SearchView> {
                       ? Align(
                           alignment: Alignment.topLeft,
                           child: Text(
-                            'No ingredients available.',
+                            'មិនមានគ្រឿងផ្សំទេ',
                             style: TextStyle(color: Colors.grey.shade700),
                           ),
                         )
@@ -372,7 +372,7 @@ class _SearchViewState extends State<SearchView> {
         ],
         if (categories.length > 1) ...[
           const Text(
-            'Filter by category',
+            'ត្រងតាមប្រភេទ',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
@@ -387,8 +387,8 @@ class _SearchViewState extends State<SearchView> {
         ],
         Text(
           (_searchQuery.trim().isEmpty && _selectedIngredients.isEmpty)
-              ? 'Popular recipes'
-              : 'Results (${results.length})',
+              ? 'រូបមន្តពេញនិយម'
+              : 'លទ្ធផល (${results.length})',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
@@ -438,7 +438,7 @@ class _SearchViewState extends State<SearchView> {
             Icon(Icons.search_off, size: 48, color: Colors.grey),
             SizedBox(height: 12),
             Text(
-              'No recipes match those ingredients.',
+              'មិនមានរូបមន្តដែលត្រូវនឹងគ្រឿងផ្សំទាំងនោះទេ',
               textAlign: TextAlign.center,
             ),
           ],
@@ -511,7 +511,7 @@ class _SearchViewState extends State<SearchView> {
     var ingredients = _parseIngredients(extractedText);
 
     if (ingredients.isEmpty) {
-      _showSearchMessage('No ingredients were recognized in the image.');
+      _showSearchMessage('មិនមានគ្រឿងផ្សំត្រូវបានស្គាល់ពីរូបភាពទេ');
       return;
     }
 

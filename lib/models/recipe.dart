@@ -124,13 +124,13 @@ class Nutrition {
 
   factory Nutrition.fromJson(Map<String, dynamic> json) {
     return Nutrition(
-      calories: _toIntNullable(json["calories"]),
-      carbsGrams: _toIntNullable(json["carbsGrams"]),
-      fatGrams: _toIntNullable(json["fatGrams"]),
-      fiberGrams: _toIntNullable(json["fiberGrams"]),
-      proteinGrams: _toIntNullable(json["proteinGrams"]),
-      sodiumMg: _toIntNullable(json["sodiumMg"]),
-      sugarGrams: _toIntNullable(json["sugarGrams"]),
+      calories: _toIntNullable(json["កាឡូរី"] ?? json["calories"]),
+      carbsGrams: _toIntNullable(json["កាបូអ៊ីដ្រាត_ក្រាម"] ?? json["carbsGrams"]),
+      fatGrams: _toIntNullable(json["ជាតិខ្លាញ់_ក្រាម"] ?? json["fatGrams"]),
+      fiberGrams: _toIntNullable(json["ជាតិសរសៃ_ក្រាម"] ?? json["fiberGrams"]),
+      proteinGrams: _toIntNullable(json["ប្រូតេអ៊ីន_ក្រាម"] ?? json["proteinGrams"]),
+      sodiumMg: _toIntNullable(json["សូដ្យូម_មីលីក្រាម"] ?? json["sodiumMg"]),
+      sugarGrams: _toIntNullable(json["ជាតិស្ករ_ក្រាម"] ?? json["sugarGrams"]),
     );
   }
 

@@ -61,7 +61,7 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Khmer Recipes"),
+        title: const Text("រូបមន្តម្ហូបខ្មែរ"),
         automaticallyImplyLeading: false,
       ),
       body: FutureBuilder<List<Recipe>>(
@@ -92,12 +92,12 @@ class _HomeViewState extends State<HomeView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              "Could not load recipes.",
+              "មិនអាចផ្ទុករូបមន្តបានទេ",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              error?.toString() ?? "Unknown error",
+              error?.toString() ?? "មានកំហុសមិនស្គាល់",
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -107,7 +107,7 @@ class _HomeViewState extends State<HomeView> {
                   _loadInitialData();
                 });
               },
-              child: const Text("Retry"),
+              child: const Text("ព្យាយាមម្តងទៀត"),
             ),
           ],
         ),
@@ -133,7 +133,7 @@ class _HomeViewState extends State<HomeView> {
         children: [
           const SizedBox(height: 20),
           const Text(
-            "Categories",
+            "ប្រភេទ",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
@@ -146,22 +146,22 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 20),
           const Text(
-            "Featured",
+            "លេចធ្លោ",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           if (featured.isEmpty)
-            const Text("No recipes available.")
+            const Text("មិនមានរូបមន្តទេ")
           else
             _featuredCarousel(context, featured),
           const SizedBox(height: 20),
           const Text(
-            "Popular Recipes",
+            "រូបមន្តពេញនិយម",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           if (popular.isEmpty)
-            const Text("No recipes available.")
+            const Text("មិនមានរូបមន្តទេ")
           else
             GridView.builder(
               shrinkWrap: true,
@@ -203,7 +203,7 @@ class _HomeViewState extends State<HomeView> {
     }
     final sortedNames = names.toList()..sort();
     return [
-      const _CategoryFilter(null, "All"),
+      const _CategoryFilter(null, "ទាំងអស់"),
       ...sortedNames.map((name) => _CategoryFilter(name, name)),
     ];
   }

@@ -45,7 +45,7 @@ class Welcomescreen extends StatelessWidget {
 
               // Main Title
               const Text(
-                'Welcome to\nKhmer Recipes',
+                'សូមស្វាគមន៍មកកាន់\nរូបមន្តម្ហូបខ្មែរ',
                 style: TextStyle(
                   fontSize: 42,
                   fontWeight: FontWeight.w800,
@@ -59,7 +59,7 @@ class Welcomescreen extends StatelessWidget {
 
               // Subtitle
               const Text(
-                'Discover authentic, delicious, and traditional Khmer dishes to cook at home.',
+                'ស្វែងរករូបមន្តម្ហូបខ្មែរឆ្ងាញ់ៗ និងប្រពៃណី សម្រាប់ចម្អិននៅផ្ទះ។',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.black54,
@@ -103,7 +103,7 @@ class Welcomescreen extends StatelessWidget {
                     ),
                   ),
                   child: const Text(
-                    'Get Started',
+                    'ចាប់ផ្តើម',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -132,7 +132,7 @@ class Welcomescreen extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  'I already have an account',
+                  'ខ្ញុំមានគណនីរួចហើយ',
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: 16,

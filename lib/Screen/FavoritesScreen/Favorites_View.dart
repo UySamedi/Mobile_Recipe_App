@@ -27,7 +27,7 @@ class _FavoritesViewState extends State<FavoritesView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Favorites')),
+      appBar: AppBar(title: const Text('ចំណូលចិត្ត')),
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -41,7 +41,7 @@ class _FavoritesViewState extends State<FavoritesView> {
                 const Icon(Icons.error_outline, size: 48, color: Colors.red),
                 const SizedBox(height: 16),
                 Text(
-                  'Error loading favorites',
+                  'មានកំហុសក្នុងការផ្ទុកចំណូលចិត្ត',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -59,7 +59,7 @@ class _FavoritesViewState extends State<FavoritesView> {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: controller.loadFavorites,
-                  child: const Text('Retry'),
+                  child: const Text('ព្យាយាមម្តងទៀត'),
                 ),
               ],
             ),
@@ -75,7 +75,7 @@ class _FavoritesViewState extends State<FavoritesView> {
                 const Icon(Icons.favorite_border, size: 48, color: Colors.grey),
                 const SizedBox(height: 16),
                 const Text(
-                  'No favorite recipes yet.',
+                  'មិនទាន់មានរូបមន្តចំណូលចិត្តនៅឡើយទេ។',
                   style: TextStyle(fontSize: 16),
                 ),
               ],

@@ -255,20 +255,20 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                           _metaChip(
                             Icons.trending_up,
                             widget.recipe.difficulty.isEmpty
-                                ? "Difficulty N/A"
+                                ? "មិនមានកម្រិតលំបាក"
                                 : widget.recipe.difficulty,
                           ),
                           _metaChip(
                             Icons.schedule,
-                            "Prep ${_formatMinutes(widget.recipe.preparationTimeMinutes)}",
+                            "ត្រៀម ${_formatMinutes(widget.recipe.preparationTimeMinutes)}",
                           ),
                           _metaChip(
                             Icons.timer_outlined,
-                            "Cook ${_formatMinutes(widget.recipe.cookTimeMinutes)}",
+                            "ចម្អិន ${_formatMinutes(widget.recipe.cookTimeMinutes)}",
                           ),
                           _metaChip(
                             Icons.timelapse,
-                            "Total ${_formatMinutes(widget.recipe.totalTimeMinutes)}",
+                            "សរុប ${_formatMinutes(widget.recipe.totalTimeMinutes)}",
                           ),
                         ],
                       ),
@@ -281,7 +281,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                         const SizedBox(height: 20),
                       ],
                       Text(
-                        _hasRated ? "Your rating" : "Rate this recipe",
+                        _hasRated ? "ការវាយតម្លៃរបស់អ្នក" : "វាយតម្លៃរូបមន្តនេះ",
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -329,8 +329,8 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                             const SizedBox(width: 4),
                             Text(
                               _hasRated
-                                  ? "You rated $userRating star${userRating > 1 ? 's' : ''}"
-                                  : "You rated: $userRating star${userRating > 1 ? 's' : ''}",
+                                  ? "អ្នកបានផ្តល់ $userRating ផ្កាយ"
+                                  : "អ្នកបានផ្តល់: $userRating ផ្កាយ",
                               style: TextStyle(
                                 color: _hasRated
                                     ? Colors.green
@@ -343,7 +343,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                       const SizedBox(height: 20),
                       if (widget.recipe.nutrition != null) ...[
                         const Text(
-                          "Nutrition",
+                          "អាហារូបត្ថម្ភ",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -355,52 +355,52 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                           runSpacing: 8,
                           children: [
                             _nutritionChip(
-                              "Calories",
+                              "កាឡូរី",
                               _formatValue(
                                 widget.recipe.nutrition!.calories,
-                                "kcal",
+                                "កាឡូរី",
                               ),
                             ),
                             _nutritionChip(
-                              "Protein",
+                              "ប្រូតេអ៊ីន",
                               _formatValue(
                                 widget.recipe.nutrition!.proteinGrams,
-                                "g",
+                                "ក្រាម",
                               ),
                             ),
                             _nutritionChip(
-                              "Carbs",
+                              "កាបូអ៊ីដ្រាត",
                               _formatValue(
                                 widget.recipe.nutrition!.carbsGrams,
-                                "g",
+                                "ក្រាម",
                               ),
                             ),
                             _nutritionChip(
-                              "Fat",
+                              "ជាតិខ្លាញ់",
                               _formatValue(
                                 widget.recipe.nutrition!.fatGrams,
-                                "g",
+                                "ក្រាម",
                               ),
                             ),
                             _nutritionChip(
-                              "Fiber",
+                              "ជាតិសរសៃ",
                               _formatValue(
                                 widget.recipe.nutrition!.fiberGrams,
-                                "g",
+                                "ក្រាម",
                               ),
                             ),
                             _nutritionChip(
-                              "Sugar",
+                              "ជាតិស្ករ",
                               _formatValue(
                                 widget.recipe.nutrition!.sugarGrams,
-                                "g",
+                                "ក្រាម",
                               ),
                             ),
                             _nutritionChip(
-                              "Sodium",
+                              "សូដ្យូម",
                               _formatValue(
                                 widget.recipe.nutrition!.sodiumMg,
-                                "mg",
+                                "មីលីក្រាម",
                               ),
                             ),
                           ],
@@ -408,7 +408,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                         const SizedBox(height: 20),
                       ],
                       const Text(
-                        "Ingredients",
+                        "គ្រឿងផ្សំ",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -416,7 +416,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                       ),
                       const SizedBox(height: 8),
                       if (widget.recipe.ingredients.isEmpty)
-                        const Text("No ingredients listed.")
+                        const Text("មិនមានគ្រឿងផ្សំទេ")
                       else
                         ...widget.recipe.ingredients.map(
                           (item) => _ingredientCard(
@@ -427,7 +427,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                         ),
                       const SizedBox(height: 20),
                       const Text(
-                        "Instructions",
+                        "ការណែនាំ",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -435,7 +435,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                       ),
                       const SizedBox(height: 8),
                       if (steps.isEmpty)
-                        const Text("No instructions provided.")
+                        const Text("មិនមានការណែនាំទេ។")
                       else
                         ...steps.asMap().entries.map(
                           (entry) => _step(entry.key + 1, entry.value),
@@ -445,7 +445,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.play_circle),
-                          label: const Text("Watch on YouTube"),
+                          label: const Text("មើលនៅលើ YouTube"),
                           onPressed: hasVideo
                               ? () => _openYoutubeLink(
                                   context,
@@ -480,12 +480,12 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Login Required'),
-          content: const Text('Please log in to rate this recipe.'),
+          title: const Text('តម្រូវឱ្យចូលគណនី'),
+          content: const Text('សូមចូលគណនីដើម្បីវាយតម្លៃរូបមន្តនេះ។'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
+              child: const Text('បោះបង់'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -497,7 +497,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                   context,
                 ).push(MaterialPageRoute(builder: (_) => const Loginscreen()));
               },
-              child: const Text('Login', style: TextStyle(color: Colors.white)),
+              child: const Text('ចូលគណនី', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -518,7 +518,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Rated $stars star${stars > 1 ? 's' : ''} ⭐"),
+          content: Text("បានផ្តល់ $stars ផ្កាយ ⭐"),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
@@ -530,8 +530,8 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
       final message = errorText.contains('(403)')
           ? errorText.replaceFirst('Exception: ', '')
           : errorText.contains('(401)')
-          ? 'Session expired. Please log in again.'
-          : 'Failed to rate: $e';
+          ? 'ផុតកំណត់សម័យ។ សូមចូលគណនីម្តងទៀត។'
+          : 'បរាជ័យក្នុងការវាយតម្លៃ: $e';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -550,12 +550,12 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Login Required'),
-          content: const Text('Please log in to add recipes to favorites.'),
+          title: const Text('តម្រូវឱ្យចូលគណនី'),
+          content: const Text('សូមចូលគណនីដើម្បីបញ្ចូលរូបមន្តទៅក្នុងចំណូលចិត្ត។'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
+              child: const Text('បោះបង់'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -567,7 +567,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
                   context,
                 ).push(MaterialPageRoute(builder: (_) => const Loginscreen()));
               },
-              child: const Text('Login', style: TextStyle(color: Colors.white)),
+              child: const Text('ចូលគណនី', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -582,7 +582,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
     if (controller.errorMessage.value.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed: ${controller.errorMessage.value}'),
+          content: Text('បរាជ័យ: ${controller.errorMessage.value}'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -597,7 +597,7 @@ class _RecipeDetailViewState extends State<RecipeDetailView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            added ? 'Added to favorites' : 'Removed from favorites',
+            added ? 'បានបន្ថែមទៅចំណូលចិត្ត' : 'បានលុបពីចំណូលចិត្ត',
           ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
