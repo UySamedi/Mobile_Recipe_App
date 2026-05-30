@@ -19,7 +19,7 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> {
   bool _isProcessing = false;
 
   final model = GenerativeModel(
-    model: 'gemini-flash-latest',
+    model: 'gemini-3.5-flash',
     apiKey: dotenv.env['GEMINI_API_KEY'] ?? 'YOUR_GEMINI_API_KEY_HERE', 
   );
 
@@ -85,7 +85,11 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() {
-          _foodNameDisplay = "មានកំហុសក្នុងការស្កេន។ សូមព្យាយាមម្តងទៀត។\n\nកំហុស: $e";
+          if (e.toString().contains('503') || e.toString().contains('high demand')) {
+            _foodNameDisplay = "ប្រព័ន្ធកំពុងមានអ្នកប្រើប្រាស់ច្រើន។ សូមរង់ចាំបន្តិចហើយព្យាយាមម្តងទៀត។";
+          } else {
+            _foodNameDisplay = "មានកំហុសក្នុងការស្កេន។ សូមព្យាយាមម្តងទៀត។";
+          }
           _foodNameSearch = null;
         });
       } finally {

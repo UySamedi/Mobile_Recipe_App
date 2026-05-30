@@ -21,7 +21,8 @@ class _RegisterscreenState extends State<Registerscreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -41,7 +42,10 @@ class _RegisterscreenState extends State<Registerscreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -55,7 +59,10 @@ class _RegisterscreenState extends State<Registerscreen> {
                     children: [
                       const Text(
                         'បង្កើតគណនី',
-                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const Text(
@@ -109,7 +116,9 @@ class _RegisterscreenState extends State<Registerscreen> {
                                 if (value == null || value.isEmpty) {
                                   return 'សូមបញ្ចូលអ៊ីមែលរបស់អ្នក';
                                 }
-                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                                if (!RegExp(
+                                  r'^[^@]+@[^@]+\.[^@]+',
+                                ).hasMatch(value)) {
                                   return 'សូមបញ្ចូលអ៊ីមែលត្រឹមត្រូវ';
                                 }
                                 return null;
@@ -130,7 +139,11 @@ class _RegisterscreenState extends State<Registerscreen> {
                                   borderSide: BorderSide.none,
                                 ),
                                 suffixIcon: IconButton(
-                                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                  ),
                                   onPressed: () {
                                     setState(() {
                                       _obscurePassword = !_obscurePassword;
@@ -163,10 +176,15 @@ class _RegisterscreenState extends State<Registerscreen> {
                                   borderSide: BorderSide.none,
                                 ),
                                 suffixIcon: IconButton(
-                                  icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                                  icon: Icon(
+                                    _obscureConfirmPassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                  ),
                                   onPressed: () {
                                     setState(() {
-                                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                                      _obscureConfirmPassword =
+                                          !_obscureConfirmPassword;
                                     });
                                   },
                                 ),
@@ -197,15 +215,20 @@ class _RegisterscreenState extends State<Registerscreen> {
                                   if (_formKey.currentState!.validate()) {
                                     try {
                                       var response = await http.post(
-                                        Uri.parse('$apiBaseUrl/api/auth/register'),
-                                        headers: {'Content-Type': 'application/json'},
+                                        Uri.parse(
+                                          '$apiBaseUrl/api/auth/register',
+                                        ),
+                                        headers: {
+                                          'Content-Type': 'application/json',
+                                        },
                                         body: jsonEncode({
                                           'username': _usernameController.text,
                                           'email': _emailController.text,
                                           'password': _passwordController.text,
                                         }),
                                       );
-                                      if (response.statusCode == 200 || response.statusCode == 201) {
+                                      if (response.statusCode == 200 ||
+                                          response.statusCode == 201) {
                                         // Clear the form
                                         _usernameController.clear();
                                         _emailController.clear();
@@ -213,34 +236,57 @@ class _RegisterscreenState extends State<Registerscreen> {
                                         _confirmPasswordController.clear();
 
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('ការចុះឈ្មោះទទួលបានជោគជ័យ! សូមចូលគណនី។')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'ការចុះឈ្មោះទទួលបានជោគជ័យ! សូមចូលគណនី។',
+                                              ),
+                                            ),
                                           );
                                         }
                                         Get.to(() => const Loginscreen());
                                       } else if (response.statusCode == 400) {
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('ឈ្មោះអ្នកប្រើប្រាស់ ឬអ៊ីមែលមានរួចហើយ')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'ឈ្មោះអ្នកប្រើប្រាស់ ឬអ៊ីមែលមានរួចហើយ',
+                                              ),
+                                            ),
                                           );
                                         }
                                       } else {
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('ការចុះឈ្មោះបរាជ័យ: ${response.body}')),
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'ការចុះឈ្មោះបរាជ័យ: ${response.body}',
+                                              ),
+                                            ),
                                           );
                                         }
                                       }
                                     } catch (e) {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(content: Text('កំហុស: $e')),
                                         );
                                       }
                                     }
                                   }
                                 },
-                                child: const Text('ចុះឈ្មោះ', style: TextStyle(fontSize: 18)),
+                                child: const Text(
+                                  'ចុះឈ្មោះ',
+                                  style: TextStyle(fontSize: 18),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -253,7 +299,13 @@ class _RegisterscreenState extends State<Registerscreen> {
                                   onTap: () {
                                     Get.to(() => const Loginscreen());
                                   },
-                                  child: const Text('ចូលគណនីនៅទីនេះ', style: TextStyle(color: Color(0xFF4CB050), fontWeight: FontWeight.bold)),
+                                  child: const Text(
+                                    'ចូលគណនីនៅទីនេះ',
+                                    style: TextStyle(
+                                      color: Color(0xFF4CB050),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
